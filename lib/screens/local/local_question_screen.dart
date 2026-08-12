@@ -32,11 +32,14 @@ class _LocalQuestionScreenState extends State<LocalQuestionScreen> {
   int _voterIndex = 0;
   String? _selectedOptionId;
   bool _confirmed = false;
+  
+  late final Color _categoryColor;
 
   @override
   void initState() {
     super.initState();
     _options = List.from(widget.question.options)..shuffle();
+    _categoryColor = AppCategories.byId(widget.question.categoryId).color;
   }
 
   Player get currentVoter => _session.players[_voterIndex];
@@ -88,7 +91,10 @@ class _LocalQuestionScreenState extends State<LocalQuestionScreen> {
       ),
       body: Stack(
         children: [
-          const LiquidBackground(),
+          LiquidBackground(
+            primaryOrbColor: _categoryColor,
+            secondaryOrbColor: _categoryColor.withOpacity(0.6),
+          ),
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
