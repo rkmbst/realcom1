@@ -28,11 +28,14 @@ class OnlineQuestionScreen extends StatefulWidget {
 class _OnlineQuestionScreenState extends State<OnlineQuestionScreen> {
   late final List<QuestionOption> _options;
   String? _selectedOptionId;
+  
+  late final Color _categoryColor;
 
   @override
   void initState() {
     super.initState();
     _options = List.from(widget.question.options)..shuffle();
+    _categoryColor = AppCategories.byId(widget.question.categoryId).color;
   }
 
   void _confirm() {
@@ -64,7 +67,10 @@ class _OnlineQuestionScreenState extends State<OnlineQuestionScreen> {
       ),
       body: Stack(
         children: [
-          const LiquidBackground(),
+          LiquidBackground(
+            primaryOrbColor: _categoryColor,
+            secondaryOrbColor: _categoryColor.withOpacity(0.6),
+          ),
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
