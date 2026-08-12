@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- عجلة بسيطة -->
+    <path
+        android:fillColor="#6C5CE7"
+        android:pathData="M54,54 m-30,0 a30,30 0,1 1,60 0 a30,30 0,1 1,-60 0" />
+
+    <!-- نقطة المنتصف -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,54 m-8,0 a8,8 0,1 1,16 0 a8,8 0,1 1,-16 0" />
+
+    <!-- خطوط العجلة -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,24 L54,44"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFF" />
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,64 L54,84"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFF" />
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,54 L44,54"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFF" />
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M64,54 L84,54"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFF" />
+</vector>
