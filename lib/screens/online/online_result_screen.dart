@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/categories.dart';
 import '../../data/mock_online_data.dart';
 import '../../models/question.dart';
 import '../../models/question_option.dart';
@@ -34,6 +35,8 @@ class OnlineResultScreen extends StatelessWidget {
         (a, b) => (results[b.id] ?? 0).compareTo(results[a.id] ?? 0),
       );
 
+    final category = AppCategories.byId(question.categoryId);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -41,7 +44,10 @@ class OnlineResultScreen extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          const LiquidBackground(),
+          LiquidBackground(
+            primaryOrbColor: category.color,
+            secondaryOrbColor: category.color.withOpacity(0.6),
+          ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(24),
