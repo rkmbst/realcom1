@@ -6,6 +6,7 @@ import 'package:flutter/physics.dart';
 import '../../core/session/app_session.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/categories.dart';
 import '../../core/utils/haptics.dart';
 import '../../widgets/glass_wheel_painter.dart';
 import '../../widgets/liquid_background.dart';
@@ -29,6 +30,9 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
 
   double _rotation = 0;
   bool _isSpinning = false;
+  
+  // Ambient color state
+  Color _ambientColor = AppColors.primary;
 
   @override
   void initState() {
@@ -99,7 +103,11 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
 
     _session.markQuestionUsed(_session.roundQuestions[selectedIndex].id);
 
+    // Set ambient color to the selected question's category color
+    final selectedQuestion = _session.roundQuestions[selectedIndex];
+    final category = AppCategories.byId(selectedQuestion.categoryId);
     setState(() {
+      _ambientColor = category.color;
       _isSpinning = false;
     });
 
@@ -176,7 +184,10 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
       ),
       body: Stack(
         children: [
-          const LiquidBackground(),
+          LiquidBackground(
+            primaryOrbColor: _ambientColor,
+            secondaryOrbColor: _ambientColor.withOpacity(0.6),
+          ),
           SafeArea(
             child: Center(
               child: Column(
