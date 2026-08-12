@@ -1,4 +1,4 @@
-name: realcom
+name: wheel_app
 description: Question wheel app with online publisher swipe and local party mode.
 publish_to: 'none'
 version: 1.0.0
