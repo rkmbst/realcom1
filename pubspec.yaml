@@ -1,7 +1,7 @@
 name: Realcom
-description: Question wheel app with online publisher swipe and local party mode.
+description: Question wheel app
 publish_to: 'none'
-version: 1.0.0
+version: 1.0.0+1
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
