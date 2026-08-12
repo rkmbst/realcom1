@@ -5,6 +5,7 @@ import 'package:flutter/physics.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/categories.dart';
 import '../../core/utils/haptics.dart';
 import '../../models/publisher.dart';
 import '../../models/question.dart';
@@ -39,6 +40,9 @@ class _PublisherWheelScreenState extends State<PublisherWheelScreen>
 
   double _rotation = 0;
   bool _isSpinning = false;
+  
+  // Ambient color state
+  Color _ambientColor = AppColors.primary;
 
   @override
   void initState() {
@@ -111,7 +115,11 @@ class _PublisherWheelScreenState extends State<PublisherWheelScreen>
 
     _usedQuestionIds.add(widget.questions[selectedIndex].id);
 
+    // Set ambient color to the selected question's category color
+    final selectedQuestion = widget.questions[selectedIndex];
+    final category = AppCategories.byId(selectedQuestion.categoryId);
     setState(() {
+      _ambientColor = category.color;
       _isSpinning = false;
     });
 
@@ -190,7 +198,10 @@ class _PublisherWheelScreenState extends State<PublisherWheelScreen>
       ),
       body: Stack(
         children: [
-          const LiquidBackground(),
+          LiquidBackground(
+            primaryOrbColor: _ambientColor,
+            secondaryOrbColor: _ambientColor.withOpacity(0.6),
+          ),
           SafeArea(
             child: Center(
               child: Column(
