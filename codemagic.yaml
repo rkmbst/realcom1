@@ -1,7 +1,6 @@
 workflows:
-  build-android:
+  android_workflow:
     name: Build Android APK
-    working_directory: realcom-main
     environment:
       flutter: 3.24.0
     scripts:
