@@ -6,6 +6,7 @@ workflows:
       flutter: 3.24.0
 
     scripts:
+      - flutter clean
       - flutter pub get
       - flutter build apk --release
 
