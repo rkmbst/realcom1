@@ -8,6 +8,13 @@ workflows:
     scripts:
       - flutter clean
       - flutter pub get
+      - echo "===== ANDROID TREE ====="
+      - find android -maxdepth 5 -type f | sort
+      - echo "===== MANIFEST ====="
+      - cat android/app/src/main/AndroidManifest.xml
+      - echo "===== EMBEDDING CHECK ====="
+      - grep -n "flutterEmbedding" android/app/src/main/AndroidManifest.xml || true
+      - grep -n "io.flutter.app.FlutterApplication" android/app/src/main/AndroidManifest.xml || true
       - flutter build apk --release
 
     artifacts:
