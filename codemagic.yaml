@@ -7,40 +7,44 @@ workflows:
 
     scripts:
       - name: Clean project
-        script: flutter clean
+        script: |
+          flutter clean
 
       - name: Get dependencies
-        script: flutter pub get
-
-      - name: Verify Flutter version
-        script: flutter --version
-
-      - name: Verify Android project
         script: |
-          echo "===== PROJECT ROOT ====="
-          pwd
+          flutter pub get
 
-          echo "===== ANDROID FILES ====="
-          find android -maxdepth 6 -type f | sort
+      - name: Regenerate Android project
+        script: |
+          flutter create --platforms=android --overwrite .
 
-          echo "===== MAIN MANIFEST ====="
+      - name: Verify Android embedding
+        script: |
+          echo "===== MANIFEST ====="
           cat android/app/src/main/AndroidManifest.xml
 
-          echo "===== FLUTTER EMBEDDING ====="
-          grep -n "flutterEmbedding" android/app/src/main/AndroidManifest.xml || true
+          echo "===== EMBEDDING ====="
+          grep -n "flutterEmbedding" android/app/src/main/AndroidManifest.xml
 
-          echo "===== OLD V1 EMBEDDING CHECK ====="
-          grep -R -n \
+          echo "===== V1 CHECK ====="
+          if grep -R -n \
             -e "io.flutter.app.FlutterApplication" \
             -e "io.flutter.app.FlutterActivity" \
             -e "io.flutter.app.FlutterFragmentActivity" \
-            android || true
+            android; then
+            echo "ERROR: Old Android V1 embedding detected"
+            exit 1
+          else
+            echo "OK: No Android V1 embedding detected"
+          fi
 
-          echo "===== MAIN ACTIVITY ====="
-          find android/app/src/main -type f \( -name "MainActivity.kt" -o -name "MainActivity.java" \) -print -exec cat {} \;
+      - name: Get dependencies again
+        script: |
+          flutter pub get
 
       - name: Build APK
-        script: flutter build apk --release
+        script: |
+          flutter build apk --release
 
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
