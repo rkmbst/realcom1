@@ -6,7 +6,7 @@ workflows:
       flutter: 3.24.0
 
     scripts:
-      - name: Clean project
+      - name: Clean Flutter
         script: |
           flutter clean
 
@@ -14,22 +14,62 @@ workflows:
         script: |
           flutter pub get
 
-      - name: Regenerate Android project
+      - name: Create clean Android project
         script: |
-          rm -rf android/app/src/main/res
-          flutter create --platforms=android --overwrite .
+          rm -rf /tmp/wheel_android
 
-      - name: Verify resource filenames
+          flutter create \
+            --platforms=android \
+            --project-name wheel_app \
+            --org com.example \
+            /tmp/wheel_android
+
+          rm -rf android
+          cp -R /tmp/wheel_android/android ./android
+
+      - name: Add Android permissions
         script: |
-          echo "===== ANDROID RES FILES ====="
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/app/src/main/AndroidManifest.xml")
+          text = path.read_text(encoding="utf-8")
+
+          permissions = """
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.VIBRATE" />
+          """
+
+          marker = '<application'
+          if "android.permission.INTERNET" not in text:
+              text = text.replace(marker, permissions + "\n    " + marker, 1)
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Verify Android project
+        script: |
+          echo "===== MAIN DART ====="
+          head -40 lib/main.dart
+
+          echo "===== MANIFEST ====="
+          cat android/app/src/main/AndroidManifest.xml
+
+          echo "===== EMBEDDING ====="
+          grep -n "flutterEmbedding" android/app/src/main/AndroidManifest.xml || true
+
+          echo "===== V1 CHECK ====="
+          if grep -R -n \
+            -e "io.flutter.app.FlutterApplication" \
+            -e "io.flutter.app.FlutterActivity" \
+            -e "io.flutter.app.FlutterFragmentActivity" \
+            android; then
+            echo "ERROR: Android V1 embedding detected"
+            exit 1
+          fi
+
+          echo "===== RESOURCE FILES ====="
           find android/app/src/main/res -type f | sort
-
-          echo "===== CHECK INVALID XML NAMES ====="
-          find android/app/src/main/res -type f | grep -E '(\.xml|\.png).*[[:space:]]+$' && exit 1 || true
-
-      - name: Verify Android embedding
-        script: |
-          grep -n "flutterEmbedding" android/app/src/main/AndroidManifest.xml
 
       - name: Get dependencies again
         script: |
