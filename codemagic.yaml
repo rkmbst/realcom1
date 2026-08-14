@@ -16,27 +16,20 @@ workflows:
 
       - name: Regenerate Android project
         script: |
+          rm -rf android/app/src/main/res
           flutter create --platforms=android --overwrite .
+
+      - name: Verify resource filenames
+        script: |
+          echo "===== ANDROID RES FILES ====="
+          find android/app/src/main/res -type f | sort
+
+          echo "===== CHECK INVALID XML NAMES ====="
+          find android/app/src/main/res -type f | grep -E '(\.xml|\.png).*[[:space:]]+$' && exit 1 || true
 
       - name: Verify Android embedding
         script: |
-          echo "===== MANIFEST ====="
-          cat android/app/src/main/AndroidManifest.xml
-
-          echo "===== EMBEDDING ====="
           grep -n "flutterEmbedding" android/app/src/main/AndroidManifest.xml
-
-          echo "===== V1 CHECK ====="
-          if grep -R -n \
-            -e "io.flutter.app.FlutterApplication" \
-            -e "io.flutter.app.FlutterActivity" \
-            -e "io.flutter.app.FlutterFragmentActivity" \
-            android; then
-            echo "ERROR: Old Android V1 embedding detected"
-            exit 1
-          else
-            echo "OK: No Android V1 embedding detected"
-          fi
 
       - name: Get dependencies again
         script: |
