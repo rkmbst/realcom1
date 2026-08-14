@@ -13,5 +13,5 @@ class Question {
     required this.categoryId,
     required this.options,
     this.authorName,
-  }) : assert(options.length == 3, 'Question must have exactly 3 options');
+  });
 }
