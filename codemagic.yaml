@@ -6,16 +6,41 @@ workflows:
       flutter: 3.24.0
 
     scripts:
-      - flutter clean
-      - flutter pub get
-      - echo "===== ANDROID TREE ====="
-      - find android -maxdepth 5 -type f | sort
-      - echo "===== MANIFEST ====="
-      - cat android/app/src/main/AndroidManifest.xml
-      - echo "===== EMBEDDING CHECK ====="
-      - grep -n "flutterEmbedding" android/app/src/main/AndroidManifest.xml || true
-      - grep -n "io.flutter.app.FlutterApplication" android/app/src/main/AndroidManifest.xml || true
-      - flutter build apk --release
+      - name: Clean project
+        script: flutter clean
+
+      - name: Get dependencies
+        script: flutter pub get
+
+      - name: Verify Flutter version
+        script: flutter --version
+
+      - name: Verify Android project
+        script: |
+          echo "===== PROJECT ROOT ====="
+          pwd
+
+          echo "===== ANDROID FILES ====="
+          find android -maxdepth 6 -type f | sort
+
+          echo "===== MAIN MANIFEST ====="
+          cat android/app/src/main/AndroidManifest.xml
+
+          echo "===== FLUTTER EMBEDDING ====="
+          grep -n "flutterEmbedding" android/app/src/main/AndroidManifest.xml || true
+
+          echo "===== OLD V1 EMBEDDING CHECK ====="
+          grep -R -n \
+            -e "io.flutter.app.FlutterApplication" \
+            -e "io.flutter.app.FlutterActivity" \
+            -e "io.flutter.app.FlutterFragmentActivity" \
+            android || true
+
+          echo "===== MAIN ACTIVITY ====="
+          find android/app/src/main -type f \( -name "MainActivity.kt" -o -name "MainActivity.java" \) -print -exec cat {} \;
+
+      - name: Build APK
+        script: flutter build apk --release
 
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
