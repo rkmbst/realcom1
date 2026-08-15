@@ -71,14 +71,26 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
   }
 
   Color _spinningAmbientColor() {
-    final phase = (sin(_rotation * 0.55) + 1) / 2;
-
-    // Only move between Aurora primary and secondary.
-    // This avoids a rainbow/casino appearance.
-    return Color.lerp(
+    // Multiple Aurora tones, intentionally muted.
+    final colors = <Color>[
       AppColors.primary,
       AppColors.secondary,
-      phase * 0.35,
+      AppColors.success,
+      AppColors.warning,
+      AppColors.error,
+    ];
+
+    const double phaseMultiplier = 0.22;
+
+    final raw = (_rotation * phaseMultiplier) % colors.length;
+    final index = raw.floor();
+    final nextIndex = (index + 1) % colors.length;
+    final t = raw - index;
+
+    return Color.lerp(
+      colors[index],
+      colors[nextIndex],
+      t,
     )!;
   }
 
