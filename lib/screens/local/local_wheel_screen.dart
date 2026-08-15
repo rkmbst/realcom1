@@ -1,14 +1,13 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/physics.dart';
 
 import '../../core/session/app_session.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/categories.dart';
 import '../../core/utils/haptics.dart';
-import '../../widgets/glass_wheel_painter.dart';
+import '../../widgets/aurora_titanium_wheel.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
 import 'local_question_screen.dart';
@@ -22,16 +21,17 @@ class LocalWheelScreen extends StatefulWidget {
 
 class _LocalWheelScreenState extends State<LocalWheelScreen>
     with SingleTickerProviderStateMixin {
+  static const int wheelSlotCount = 12;
+
   final AppSession _session = AppSession.instance;
+  final Random _random = Random();
 
   late final AnimationController _controller;
 
-  final Random _random = Random();
-
   double _rotation = 0;
   bool _isSpinning = false;
-  
-  // Ambient color state
+
+  int? _selectedSlot;
   Color _ambientColor = AppColors.primary;
 
   @override
@@ -42,16 +42,50 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
       _session.prepareRound();
     }
 
-    _controller = AnimationController.unbounded(vsync: this)
-      ..addListener(() {
+    _controller = AnimationController.unbounded(
+      vsync: this,
+      value: _rotation,
+    )..addListener(() {
+        if (!mounted) return;
+
         setState(() {
           _rotation = _controller.value;
         });
       });
   }
 
+  /// Maps a question index onto one of the fixed 12 wheel positions.
+  ///
+  /// Examples:
+  /// 6 questions  -> 0,2,4,6,8,10
+  /// 8 questions  -> 0,1,3,4,6,7,9,10
+  /// 12 questions -> 0...11
+  int _questionIndexToSlot(int questionIndex, int questionCount) {
+    if (questionCount <= 1) {
+      return 0;
+    }
+
+    return ((questionIndex * wheelSlotCount) / questionCount)
+        .floor()
+        .clamp(0, wheelSlotCount - 1);
+  }
+
+  Color _spinningAmbientColor() {
+    final phase = (sin(_rotation * 0.55) + 1) / 2;
+
+    // Only move between Aurora primary and secondary.
+    // This avoids a rainbow/casino appearance.
+    return Color.lerp(
+      AppColors.primary,
+      AppColors.secondary,
+      phase * 0.35,
+    )!;
+  }
+
   Future<void> _spin() async {
-    if (_isSpinning || _session.roundQuestions.isEmpty) return;
+    if (_isSpinning || _session.roundQuestions.isEmpty) {
+      return;
+    }
 
     final unusedIndexes = _session.unusedRoundIndexes();
 
@@ -60,73 +94,91 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
       return;
     }
 
+    final selectedIndex =
+        unusedIndexes[_random.nextInt(unusedIndexes.length)];
+
+    final selectedSlot = _questionIndexToSlot(
+      selectedIndex,
+      _session.roundQuestions.length,
+    );
+
+    const slotAngle = 2 * pi / wheelSlotCount;
+
+    // Slot 0 / I is at the top.
+    final selectedTargetAngle = -(selectedSlot * slotAngle);
+
+    final currentTurns = (_rotation / (2 * pi)).floor();
+
+    var targetRotation =
+        currentTurns * 2 * pi + selectedTargetAngle;
+
+    while (targetRotation <= _rotation) {
+      targetRotation += 2 * pi;
+    }
+
+    // Long premium spin.
+    targetRotation +=
+        (5 + _random.nextInt(3)) * 2 * pi;
+
     setState(() {
       _isSpinning = true;
+      _selectedSlot = null;
     });
 
     Haptics.medium();
 
-    final selectedIndex = unusedIndexes[_random.nextInt(unusedIndexes.length)];
-    final segmentAngle = (2 * pi) / _session.roundQuestions.length;
-
-    final targetAngle = -pi / 2 - (selectedIndex + 0.5) * segmentAngle;
-    final extraTurns = 5 + _random.nextInt(4);
-
-    final currentMod = _rotation % (2 * pi);
-
-    double delta = (targetAngle - currentMod) % (2 * pi);
-
-    if (delta < 0) {
-      delta += 2 * pi;
-    }
-
-    final targetRotation = _rotation + extraTurns * 2 * pi + delta;
-
-    final simulation = SpringSimulation(
-      const SpringDescription(
-        mass: 1,
-        stiffness: 90,
-        damping: 18,
-      ),
-      _rotation,
+    // Smooth deceleration rather than a mechanical snap.
+    await _controller.animateTo(
       targetRotation,
-      0,
+      duration: const Duration(milliseconds: 3200),
+      curve: Curves.easeOutCubic,
     );
-
-    _controller.animateWith(simulation);
-
-    await Future.delayed(const Duration(milliseconds: 4200));
 
     if (!mounted) return;
 
-    _controller.stop();
+    _controller.value = targetRotation;
 
-    _session.markQuestionUsed(_session.roundQuestions[selectedIndex].id);
+    final selectedQuestion =
+        _session.roundQuestions[selectedIndex];
 
-    // Set ambient color to the selected question's category color
-    final selectedQuestion = _session.roundQuestions[selectedIndex];
-    final category = AppCategories.byId(selectedQuestion.categoryId);
+    final category =
+        AppCategories.byId(selectedQuestion.categoryId);
+
+    _session.markQuestionUsed(selectedQuestion.id);
+
     setState(() {
+      _rotation = targetRotation;
+      _selectedSlot = selectedSlot;
       _ambientColor = category.color;
       _isSpinning = false;
     });
+
+    Haptics.light();
+
+    await Future.delayed(
+      const Duration(milliseconds: 420),
+    );
+
+    if (!mounted) return;
 
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => LocalQuestionScreen(
-          question: _session.roundQuestions[selectedIndex],
+          question: selectedQuestion,
         ),
       ),
     );
 
-    if (mounted) {
-      setState(() {});
-    }
+    if (!mounted) return;
+
+    setState(() {
+      _selectedSlot = null;
+    });
   }
 
   void _showRoundCompleteDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -147,18 +199,26 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
               onPressed: () => Navigator.pop(context),
               child: const Text(
                 'خروج',
-                style: TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
             TextButton(
               onPressed: () {
                 _session.resetRound();
                 Navigator.pop(context);
-                setState(() {});
+
+                setState(() {
+                  _selectedSlot = null;
+                  _ambientColor = AppColors.primary;
+                });
               },
               child: const Text(
                 'إعادة الجولة',
-                style: TextStyle(color: AppColors.primary),
+                style: TextStyle(
+                  color: AppColors.primary,
+                ),
               ),
             ),
           ],
@@ -175,7 +235,16 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
 
   @override
   Widget build(BuildContext context) {
-    final wheelSize = MediaQuery.of(context).size.width * 0.82;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    final wheelSize = min(
+      screenWidth * 0.84,
+      390.0,
+    );
+
+    final backgroundColor = _isSpinning
+        ? _spinningAmbientColor()
+        : _ambientColor;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -185,58 +254,93 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
       body: Stack(
         children: [
           LiquidBackground(
-            primaryOrbColor: _ambientColor,
-            secondaryOrbColor: _ambientColor.withOpacity(0.6),
+            primaryOrbColor: backgroundColor,
+            secondaryOrbColor:
+                backgroundColor.withOpacity(0.55),
           ),
+
           SafeArea(
             child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.arrow_drop_down,
-                    size: 48,
-                    color: AppColors.primary,
-                  ),
-                  const SizedBox(height: 8),
-                  LiquidGlassContainer(
-                    borderRadius: 999,
-                    padding: EdgeInsets.zero,
-                    child: SizedBox(
-                      width: wheelSize,
-                      height: wheelSize,
-                      child: CustomPaint(
-                        painter: GlassWheelPainter(
-                          segmentCount: _session.roundQuestions.length,
-                          rotation: _rotation,
-                          usedIndexes: _session.usedRoundIndexes(),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 24,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'اختر سؤالك',
+                      style: AppTextStyles.titleLarge,
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    Text(
+                      '${_session.roundQuestions.length} أسئلة في الجولة',
+                      style: AppTextStyles.caption,
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    LiquidGlassContainer(
+                      borderRadius: 999,
+                      padding: const EdgeInsets.all(6),
+                      child: AuroraTitaniumWheel(
+                        rotation: _rotation,
+                        selectedSlot: _selectedSlot,
+                        size: wheelSize,
+                      ),
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    Text(
+                      'I  ·  II  ·  III  ·  IV  ·  V  ·  VI  ·  VII  ·  VIII  ·  IX  ·  X  ·  XI  ·  XII',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textDisabled,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                      ),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed:
+                              _isSpinning ? null : _spin,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                AppColors.primary,
+                            foregroundColor:
+                                AppColors.textPrimary,
+                            disabledBackgroundColor:
+                                AppColors.primary
+                                    .withOpacity(0.35),
+                            shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(18),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            _isSpinning
+                                ? 'جاري الدوران...'
+                                : 'دور العجلة',
+                            style:
+                                AppTextStyles.button,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 32),
-                  Text(
-                    '${_session.roundQuestions.length} أسئلة في الجولة',
-                    style: AppTextStyles.titleMedium,
-                  ),
-                  const SizedBox(height: 32),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: ElevatedButton.icon(
-                      onPressed: _isSpinning ? null : _spin,
-                      icon: const Icon(Icons.casino),
-                      label: Text(_isSpinning ? 'جاري الدوران...' : 'دور العجلة'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.textPrimary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
