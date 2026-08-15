@@ -4,8 +4,8 @@ import '../core/theme/app_colors.dart';
 
 /// Aurora atmosphere background.
 ///
-/// The background remains dark and readable while semantic colors
-/// create a soft ambient field behind the content.
+/// The background stays dark and readable while semantic colors
+/// create a soft, wide ambient field behind the content.
 class LiquidBackground extends StatelessWidget {
   final Color? primaryOrbColor;
   final Color? secondaryOrbColor;
@@ -32,23 +32,25 @@ class LiquidBackground extends StatelessWidget {
             curve: Curves.easeInOut,
             decoration: BoxDecoration(
               gradient: RadialGradient(
-                center: const Alignment(0, -0.15),
+                center: const Alignment(0.0, -0.15),
                 radius: 1.05,
                 colors: [
                   primary.withOpacity(0.24),
                   primary.withOpacity(0.10),
+                  primary.withOpacity(0.025),
                   Colors.transparent,
                 ],
                 stops: const [
                   0.0,
-                  0.42,
+                  0.40,
+                  0.70,
                   1.0,
                 ],
               ),
             ),
           ),
 
-          // Secondary softer atmosphere.
+          // Secondary atmosphere.
           AnimatedContainer(
             duration: const Duration(milliseconds: 380),
             curve: Curves.easeInOut,
@@ -57,35 +59,37 @@ class LiquidBackground extends StatelessWidget {
                 center: const Alignment(0.65, 0.85),
                 radius: 1.0,
                 colors: [
-                  secondary.withOpacity(0.12),
-                  secondary.withOpacity(0.035),
+                  secondary.withOpacity(0.15),
+                  secondary.withOpacity(0.055),
+                  secondary.withOpacity(0.015),
                   Colors.transparent,
                 ],
                 stops: const [
                   0.0,
-                  0.45,
+                  0.42,
+                  0.72,
                   1.0,
                 ],
               ),
             ),
           ),
 
-          // Very subtle central breathing glow.
+          // Soft center atmosphere.
           AnimatedContainer(
             duration: const Duration(milliseconds: 420),
             curve: Curves.easeInOut,
             decoration: BoxDecoration(
               gradient: RadialGradient(
-                center: const Alignment(0, 0.08),
+                center: const Alignment(0.0, 0.05),
                 radius: 0.72,
                 colors: [
-                  primary.withOpacity(0.08),
+                  primary.withOpacity(0.085),
                   primary.withOpacity(0.025),
                   Colors.transparent,
                 ],
                 stops: const [
                   0.0,
-                  0.38,
+                  0.40,
                   1.0,
                 ],
               ),
