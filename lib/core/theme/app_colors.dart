@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Aurora UI v2 semantic color tokens.
 ///
-/// UI code should use these roles instead of raw hex colors.
+/// UI code should use semantic roles instead of raw hex colors.
 class AppColors {
   AppColors._();
 
@@ -15,14 +15,36 @@ class AppColors {
   static const Color surfaceVariant = Color(0xFF1A2230);
   static const Color divider = Color(0xFF2A3443);
 
+  // Aurora identity.
   static const Color primary = Color(0xFF6C5CE7);
   static const Color secondary = Color(0xFF4CC9F0);
 
+  // Semantic content colors.
   static const Color like = Color(0xFFFF4D6D);
   static const Color success = Color(0xFF2ECC71);
   static const Color warning = Color(0xFFF4B400);
   static const Color error = Color(0xFFEB4D4B);
   static const Color info = secondary;
+
+  // ─────────────────────────────────────────────
+  // WeLibre Titanium Controls
+  // ─────────────────────────────────────────────
+
+  /// Main premium button surface.
+  static const Color titanium = Color(0xFFD8DCE1);
+
+  /// Button pressed / highlighted state.
+  static const Color titaniumHighlight = Color(0xFFEEF0F3);
+
+  /// Slightly darker titanium for subtle borders/details.
+  static const Color titaniumBorder = Color(0xFF8F969F);
+
+  /// Text/icons placed on titanium controls.
+  static const Color onTitanium = Color(0xFF10131A);
+
+  // ─────────────────────────────────────────────
+  // Dark text
+  // ─────────────────────────────────────────────
 
   static const Color textPrimary = Color(0xFFFFFFFF);
   static const Color textSecondary = Color(0xFFAAB2C5);
@@ -55,7 +77,7 @@ class AppColors {
   static const Color lightOnPrimary = Color(0xFFFFFFFF);
 
   // ─────────────────────────────────────────────
-  // Glass / effects
+  // Glass / Effects
   // ─────────────────────────────────────────────
 
   static const Color glassBorder = Color(0x2EFFFFFF);
