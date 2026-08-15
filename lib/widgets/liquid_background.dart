@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 
 /// Aurora atmosphere background.
-/// Keeps the base screen dark while allowing category / spin colors
-/// to breathe through a soft, low-opacity ambient field.
+///
+/// The background remains dark and readable while semantic colors
+/// create a soft ambient field behind the content.
 class LiquidBackground extends StatelessWidget {
   final Color? primaryOrbColor;
   final Color? secondaryOrbColor;
@@ -17,102 +18,87 @@ class LiquidBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = primaryOrbColor ?? AppColors.primary;
-    final secondary = secondaryOrbColor ?? AppColors.secondary;
+    final primary = primaryOrbColor ?? AppColors.secondary;
+    final secondary = secondaryOrbColor ?? primary;
 
-    return RepaintBoundary(
-      child: ColoredBox(
-        color: AppColors.background,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Large top-right atmosphere.
-            Align(
-              alignment: Alignment.topRight,
-              child: FractionallySizedBox(
-                widthFactor: 0.95,
-                heightFactor: 0.58,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(0.48, -0.10),
-                      radius: 0.95,
-                      colors: [
-                        primary.withOpacity(0.34),
-                        primary.withOpacity(0.14),
-                        primary.withOpacity(0.035),
-                        Colors.transparent,
-                      ],
-                      stops: const [
-                        0.0,
-                        0.34,
-                        0.68,
-                        1.0,
-                      ],
-                    ),
-                  ),
-                ),
+    return ColoredBox(
+      color: AppColors.background,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Main Aurora atmosphere.
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeInOut,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0, -0.15),
+                radius: 1.05,
+                colors: [
+                  primary.withOpacity(0.24),
+                  primary.withOpacity(0.10),
+                  Colors.transparent,
+                ],
+                stops: const [
+                  0.0,
+                  0.42,
+                  1.0,
+                ],
               ),
             ),
+          ),
 
-            // Bottom-left secondary atmosphere.
-            Align(
-              alignment: Alignment.bottomLeft,
-              child: FractionallySizedBox(
-                widthFactor: 0.92,
-                heightFactor: 0.50,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(-0.36, 0.58),
-                      radius: 1.0,
-                      colors: [
-                        secondary.withOpacity(0.24),
-                        secondary.withOpacity(0.09),
-                        secondary.withOpacity(0.025),
-                        Colors.transparent,
-                      ],
-                      stops: const [
-                        0.0,
-                        0.36,
-                        0.70,
-                        1.0,
-                      ],
-                    ),
-                  ),
-                ),
+          // Secondary softer atmosphere.
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 380),
+            curve: Curves.easeInOut,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0.65, 0.85),
+                radius: 1.0,
+                colors: [
+                  secondary.withOpacity(0.12),
+                  secondary.withOpacity(0.035),
+                  Colors.transparent,
+                ],
+                stops: const [
+                  0.0,
+                  0.45,
+                  1.0,
+                ],
               ),
             ),
+          ),
 
-            // Soft central glow.
-            Align(
-              alignment: const Alignment(0, 0.08),
-              child: FractionallySizedBox(
-                widthFactor: 0.72,
-                heightFactor: 0.42,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      colors: [
-                        primary.withOpacity(0.14),
-                        primary.withOpacity(0.05),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.42, 1.0],
-                    ),
-                  ),
-                ),
+          // Very subtle central breathing glow.
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 420),
+            curve: Curves.easeInOut,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0, 0.08),
+                radius: 0.72,
+                colors: [
+                  primary.withOpacity(0.08),
+                  primary.withOpacity(0.025),
+                  Colors.transparent,
+                ],
+                stops: const [
+                  0.0,
+                  0.38,
+                  1.0,
+                ],
               ),
             ),
+          ),
 
-            // A subtle dark veil keeps text readable.
-            const IgnorePointer(
-              child: ColoredBox(
-                color: Color(0x120B0F14),
-              ),
+          // Dark readability veil.
+          const IgnorePointer(
+            child: ColoredBox(
+              color: Color(0x220B0F14),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
