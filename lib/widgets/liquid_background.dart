@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
 
-/// Animated liquid background with dynamic color support.
-class LiquidBackground extends StatefulWidget {
+/// Aurora atmosphere background.
+/// Keeps the base screen dark while allowing category / spin colors
+/// to breathe through a soft, low-opacity ambient field.
+class LiquidBackground extends StatelessWidget {
   final Color? primaryOrbColor;
   final Color? secondaryOrbColor;
 
@@ -14,101 +16,107 @@ class LiquidBackground extends StatefulWidget {
   });
 
   @override
-  State<LiquidBackground> createState() => _LiquidBackgroundState();
-}
-
-class _LiquidBackgroundState extends State<LiquidBackground> {
-  late Color _primaryColor;
-  late Color _secondaryColor;
-
-  @override
-  void initState() {
-    super.initState();
-    _primaryColor = widget.primaryOrbColor ?? AppColors.primary;
-    _secondaryColor = widget.secondaryOrbColor ?? AppColors.secondary;
-  }
-
-  @override
-  void didUpdateWidget(LiquidBackground oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    if (widget.primaryOrbColor != oldWidget.primaryOrbColor ||
-        widget.secondaryOrbColor != oldWidget.secondaryOrbColor) {
-      setState(() {
-        _primaryColor = widget.primaryOrbColor ?? AppColors.primary;
-        _secondaryColor = widget.secondaryOrbColor ?? AppColors.secondary;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 600),
-      curve: Curves.easeInOut,
-      color: AppColors.background,
-      child: Stack(
-        children: [
-          // Primary orb (top-right)
-          Positioned(
-            top: -120,
-            right: -100,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 600),
-              curve: Curves.easeInOut,
-              width: 380,
-              height: 380,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    _primaryColor.withOpacity(0.30),
-                    Colors.transparent,
-                  ],
+    final primary = primaryOrbColor ?? AppColors.primary;
+    final secondary = secondaryOrbColor ?? AppColors.secondary;
+
+    return RepaintBoundary(
+      child: ColoredBox(
+        color: AppColors.background,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Large top-right atmosphere.
+            Align(
+              alignment: Alignment.topRight,
+              child: FractionallySizedBox(
+                widthFactor: 0.95,
+                heightFactor: 0.58,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0.48, -0.10),
+                      radius: 0.95,
+                      colors: [
+                        primary.withOpacity(0.34),
+                        primary.withOpacity(0.14),
+                        primary.withOpacity(0.035),
+                        Colors.transparent,
+                      ],
+                      stops: const [
+                        0.0,
+                        0.34,
+                        0.68,
+                        1.0,
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Secondary orb (bottom-left)
-          Positioned(
-            bottom: -140,
-            left: -120,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 600),
-              curve: Curves.easeInOut,
-              width: 420,
-              height: 420,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    _secondaryColor.withOpacity(0.20),
-                    Colors.transparent,
-                  ],
+            // Bottom-left secondary atmosphere.
+            Align(
+              alignment: Alignment.bottomLeft,
+              child: FractionallySizedBox(
+                widthFactor: 0.92,
+                heightFactor: 0.50,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.36, 0.58),
+                      radius: 1.0,
+                      colors: [
+                        secondary.withOpacity(0.24),
+                        secondary.withOpacity(0.09),
+                        secondary.withOpacity(0.025),
+                        Colors.transparent,
+                      ],
+                      stops: const [
+                        0.0,
+                        0.36,
+                        0.70,
+                        1.0,
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Center subtle glow
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.4,
-            left: MediaQuery.of(context).size.width * 0.3,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 600),
-              curve: Curves.easeInOut,
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    _primaryColor.withOpacity(0.10),
-                    Colors.transparent,
-                  ],
+            // Soft central glow.
+            Align(
+              alignment: const Alignment(0, 0.08),
+              child: FractionallySizedBox(
+                widthFactor: 0.72,
+                heightFactor: 0.42,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      colors: [
+                        primary.withOpacity(0.14),
+                        primary.withOpacity(0.05),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.42, 1.0],
+                    ),
+                  ),
                 ),
               ),
+            ),
+
+            // A subtle dark veil keeps text readable.
+            const IgnorePointer(
+              child: ColoredBox(
+                color: Color(0x120B0F14),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}              ),
             ),
           ),
         ],
