@@ -116,11 +116,4 @@ class LiquidBackground extends StatelessWidget {
       ),
     );
   }
-}              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
