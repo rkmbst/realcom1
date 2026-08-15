@@ -33,7 +33,9 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
 
   int? _selectedSlot;
 
-  // Default atmosphere is Cyan rather than Purple.
+  /// Default WeLibre atmosphere.
+  ///
+  /// Cyan is intentionally used instead of Purple.
   Color _ambientColor = AppColors.secondary;
 
   @override
@@ -56,12 +58,8 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
       });
   }
 
-  /// Maps a question index onto one of the fixed 12 wheel positions.
-  ///
-  /// Examples:
-  /// 6 questions  -> 0,2,4,6,8,10
-  /// 8 questions  -> 0,1,3,4,6,7,9,10
-  /// 12 questions -> 0...11
+  /// Keeps the wheel visually fixed at 12 positions
+  /// while allowing a round to contain fewer questions.
   int _questionIndexToSlot(
     int questionIndex,
     int questionCount,
@@ -75,10 +73,11 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
         .clamp(0, wheelSlotCount - 1);
   }
 
-  /// Aurora colors used only during wheel motion.
+  /// Colors used ONLY while the wheel is spinning.
   ///
-  /// Purple is intentionally excluded:
-  /// Cyan -> Blue -> Green -> Amber -> Red -> Cyan
+  /// Purple intentionally excluded.
+  ///
+  /// Cyan → Blue → Green → Amber → Red → Cyan
   Color _spinningAmbientColor() {
     const colors = <Color>[
       AppColors.secondary,
@@ -88,27 +87,33 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
       AppColors.error,
     ];
 
+    // Higher value = faster color movement.
     const double speed = 0.48;
 
     final raw = (_rotation * speed) % colors.length;
 
     final index = raw.floor();
     final nextIndex = (index + 1) % colors.length;
-    final t = raw - index;
+
+    final t = Curves.easeInOut.transform(
+      raw - index,
+    );
 
     return Color.lerp(
       colors[index],
       colors[nextIndex],
-      Curves.easeInOut.transform(t),
+      t,
     )!;
   }
 
   Future<void> _spin() async {
-    if (_isSpinning || _session.roundQuestions.isEmpty) {
+    if (_isSpinning ||
+        _session.roundQuestions.isEmpty) {
       return;
     }
 
-    final unusedIndexes = _session.unusedRoundIndexes();
+    final unusedIndexes =
+        _session.unusedRoundIndexes();
 
     if (unusedIndexes.isEmpty) {
       _showRoundCompleteDialog();
@@ -116,29 +121,36 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
     }
 
     final selectedIndex =
-        unusedIndexes[_random.nextInt(unusedIndexes.length)];
+        unusedIndexes[
+          _random.nextInt(
+            unusedIndexes.length,
+          )
+        ];
 
     final selectedSlot = _questionIndexToSlot(
       selectedIndex,
       _session.roundQuestions.length,
     );
 
-    const slotAngle = 2 * pi / wheelSlotCount;
+    const slotAngle =
+        2 * pi / wheelSlotCount;
 
-    // Slot 0 / I is at 12 o'clock.
-    final selectedTargetAngle = -(selectedSlot * slotAngle);
+    // Slot 0 / I is positioned at 12 o'clock.
+    final selectedTargetAngle =
+        -(selectedSlot * slotAngle);
 
     final currentTurns =
         (_rotation / (2 * pi)).floor();
 
     var targetRotation =
-        currentTurns * 2 * pi + selectedTargetAngle;
+        currentTurns * 2 * pi +
+        selectedTargetAngle;
 
     while (targetRotation <= _rotation) {
       targetRotation += 2 * pi;
     }
 
-    // 7–9 full turns.
+    // 7–9 complete wheel revolutions.
     targetRotation +=
         (7 + _random.nextInt(3)) * 2 * pi;
 
@@ -149,10 +161,11 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
 
     Haptics.medium();
 
-    // Slow premium spin.
+    // Long, premium-feeling spin.
     await _controller.animateTo(
       targetRotation,
-      duration: const Duration(milliseconds: 5600),
+      duration:
+          const Duration(milliseconds: 5600),
       curve: Curves.easeOutCubic,
     );
 
@@ -176,7 +189,8 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
       _rotation = targetRotation;
       _selectedSlot = selectedSlot;
 
-      // After landing, keep the category atmosphere.
+      // Once the wheel lands, the question category
+      // becomes the ambient color of the scene.
       _ambientColor = category.color;
 
       _isSpinning = false;
@@ -213,7 +227,8 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
         return AlertDialog(
           backgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius:
+                BorderRadius.circular(22),
           ),
           title: const Text(
             'اكتملت الجولة',
@@ -225,14 +240,17 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () =>
+                  Navigator.pop(context),
               child: const Text(
                 'خروج',
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color:
+                      AppColors.textSecondary,
                 ),
               ),
             ),
+
             TextButton(
               onPressed: () {
                 _session.resetRound();
@@ -241,13 +259,15 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
 
                 setState(() {
                   _selectedSlot = null;
-                  _ambientColor = AppColors.secondary;
+                  _ambientColor =
+                      AppColors.secondary;
                 });
               },
               child: const Text(
                 'إعادة الجولة',
                 style: TextStyle(
-                  color: AppColors.primary,
+                  color:
+                      AppColors.titanium,
                 ),
               ),
             ),
@@ -273,23 +293,29 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
       390.0,
     );
 
-    final backgroundColor = _isSpinning
-        ? _spinningAmbientColor()
-        : _ambientColor;
+    final backgroundColor =
+        _isSpinning
+            ? _spinningAmbientColor()
+            : _ambientColor;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor:
+          AppColors.background,
 
       appBar: AppBar(
-        title: const Text('عجلة الجلسة'),
+        title: const Text(
+          'عجلة الجلسة',
+        ),
       ),
 
       body: Stack(
         children: [
           LiquidBackground(
-            primaryOrbColor: backgroundColor,
+            primaryOrbColor:
+                backgroundColor,
             secondaryOrbColor:
-                backgroundColor.withOpacity(0.55),
+                backgroundColor
+                    .withOpacity(0.55),
           ),
 
           SafeArea(
@@ -309,7 +335,9 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
                           AppTextStyles.titleLarge,
                     ),
 
-                    const SizedBox(height: 8),
+                    const SizedBox(
+                      height: 8,
+                    ),
 
                     Text(
                       '${_session.roundQuestions.length} أسئلة في الجولة',
@@ -317,62 +345,106 @@ class _LocalWheelScreenState extends State<LocalWheelScreen>
                           AppTextStyles.caption,
                     ),
 
-                    const SizedBox(height: 22),
+                    const SizedBox(
+                      height: 22,
+                    ),
 
                     LiquidGlassContainer(
                       borderRadius: 999,
                       padding:
-                          const EdgeInsets.all(6),
+                          const EdgeInsets.all(
+                        6,
+                      ),
                       child:
                           AuroraTitaniumWheel(
-                        rotation: _rotation,
+                        rotation:
+                            _rotation,
                         selectedSlot:
                             _selectedSlot,
-                        size: wheelSize,
+                        size:
+                            wheelSize,
                       ),
                     ),
 
-                    const SizedBox(height: 30),
+                    const SizedBox(
+                      height: 30,
+                    ),
 
+                    // Main WeLibre action:
+                    // Soft Titanium instead of Purple.
                     Padding(
                       padding:
-                          const EdgeInsets.symmetric(
+                          const EdgeInsets
+                              .symmetric(
                         horizontal: 32,
                       ),
                       child: SizedBox(
-                        width: double.infinity,
+                        width:
+                            double.infinity,
                         height: 54,
                         child:
                             ElevatedButton(
-                          onPressed: _isSpinning
-                              ? null
-                              : _spin,
+                          onPressed:
+                              _isSpinning
+                                  ? null
+                                  : _spin,
+
                           style:
-                              ElevatedButton.styleFrom(
+                              ElevatedButton
+                                  .styleFrom(
                             backgroundColor:
-                                AppColors.primary,
+                                AppColors
+                                    .titanium,
+
                             foregroundColor:
-                                AppColors.textPrimary,
+                                AppColors
+                                    .onTitanium,
+
                             disabledBackgroundColor:
-                                AppColors.primary
+                                AppColors
+                                    .titanium
                                     .withOpacity(
-                              0.35,
+                                  0.32,
+                                ),
+
+                            disabledForegroundColor:
+                                AppColors
+                                    .onTitanium
+                                    .withOpacity(
+                                  0.50,
+                                ),
+
+                            elevation: 0,
+
+                            minimumSize:
+                                const Size(
+                              44,
+                              44,
                             ),
+
                             shape:
                                 RoundedRectangleBorder(
                               borderRadius:
-                                  BorderRadius.circular(
+                                  BorderRadius
+                                      .circular(
                                 18,
                               ),
                             ),
-                            elevation: 0,
+
+                            textStyle:
+                                AppTextStyles
+                                    .button
+                                    .copyWith(
+                              color:
+                                  AppColors
+                                      .onTitanium,
+                            ),
                           ),
+
                           child: Text(
                             _isSpinning
                                 ? 'جاري الدوران...'
                                 : 'دور العجلة',
-                            style:
-                                AppTextStyles.button,
                           ),
                         ),
                       ),
