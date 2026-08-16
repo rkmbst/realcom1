@@ -12,14 +12,17 @@ import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
 import 'online_feed_screen.dart';
 
-class OnlineResultScreen extends StatefulWidget {
+class OnlineResultScreen
+    extends StatefulWidget {
   final Question question;
   final String selectedOptionId;
+  final bool isLastQuestion;
 
   const OnlineResultScreen({
     super.key,
     required this.question,
     required this.selectedOptionId,
+    required this.isLastQuestion,
   });
 
   @override
@@ -29,17 +32,21 @@ class OnlineResultScreen extends StatefulWidget {
 
 class _OnlineResultScreenState
     extends State<OnlineResultScreen> {
-  final OnlineInteractionStore _interactions =
+  final OnlineInteractionStore
+      _interactions =
       OnlineInteractionStore.instance;
 
-  final TextEditingController _commentController =
+  final TextEditingController
+      _commentController =
       TextEditingController();
 
   final FocusNode _commentFocusNode =
       FocusNode();
 
   late final Map<String, int> _results;
-  late final List<QuestionOption> _sortedOptions;
+  late final List<QuestionOption>
+      _sortedOptions;
+
   late final Color _categoryColor;
 
   bool _liked = false;
@@ -48,30 +55,34 @@ class _OnlineResultScreenState
   void initState() {
     super.initState();
 
-    _results = MockOnlineData.generateResults(
+    _results =
+        MockOnlineData.generateResults(
       widget.question,
       widget.selectedOptionId,
     );
 
     _sortedOptions =
         List<QuestionOption>.from(
-          widget.question.options,
-        )..sort(
-            (a, b) =>
-                (_results[b.id] ?? 0)
-                    .compareTo(
-              _results[a.id] ?? 0,
-            ),
-          );
+      widget.question.options,
+    )..sort(
+        (a, b) =>
+            (_results[b.id] ?? 0)
+                .compareTo(
+          _results[a.id] ?? 0,
+        ),
+      );
 
     _categoryColor =
         AppCategories.byId(
       widget.question.categoryId,
     ).color;
 
-    _liked = _interactions.isLiked(
-      widget.question.id,
-    );
+    if (widget.isLastQuestion) {
+      _liked =
+          _interactions.isLiked(
+        widget.question.id,
+      );
+    }
   }
 
   @override
@@ -82,7 +93,8 @@ class _OnlineResultScreenState
   }
 
   void _toggleLike() {
-    final liked = _interactions.toggleLike(
+    final liked =
+        _interactions.toggleLike(
       widget.question.id,
     );
 
@@ -115,8 +127,8 @@ class _OnlineResultScreenState
     setState(() {});
   }
 
-  void _openCommentField() {
-    _commentFocusNode.requestFocus();
+  void _backToWheel() {
+    Navigator.pop(context);
   }
 
   void _backToFeed() {
@@ -131,39 +143,54 @@ class _OnlineResultScreenState
 
   @override
   Widget build(BuildContext context) {
-    final totalVotes = _results.values.fold<int>(
+    final totalVotes =
+        _results.values.fold<int>(
       0,
       (sum, count) => sum + count,
     );
 
     final agreedCount =
-        _results[widget.selectedOptionId] ?? 0;
+        _results[
+              widget.selectedOptionId,
+            ] ??
+            0;
 
     final comments =
-        _interactions.comments(
-      widget.question.id,
-    );
+        widget.isLastQuestion
+            ? _interactions.comments(
+                widget.question.id,
+              )
+            : const <String>[];
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor:
+          AppColors.background,
 
       appBar: AppBar(
-        title: const Text('النتيجة'),
+        title: Text(
+          widget.isLastQuestion
+              ? 'انتهت الجولة'
+              : 'النتيجة',
+        ),
       ),
 
       body: Stack(
         children: [
           LiquidBackground(
-            primaryOrbColor: _categoryColor,
+            primaryOrbColor:
+                _categoryColor,
             secondaryOrbColor:
-                _categoryColor.withOpacity(0.52),
+                _categoryColor.withOpacity(
+              0.52,
+            ),
           ),
 
           SafeArea(
             child: Column(
               children: [
                 Expanded(
-                  child: SingleChildScrollView(
+                  child:
+                      SingleChildScrollView(
                     padding:
                         const EdgeInsets.fromLTRB(
                       24,
@@ -173,34 +200,75 @@ class _OnlineResultScreenState
                     ),
                     child: Column(
                       crossAxisAlignment:
-                          CrossAxisAlignment.stretch,
+                          CrossAxisAlignment
+                              .stretch,
                       children: [
-                        // Question.
+                        if (widget.isLastQuestion)
+                          LiquidGlassContainer(
+                            child: Column(
+                              children: [
+                                const Icon(
+                                  Icons
+                                      .check_circle_outline,
+                                  size: 44,
+                                  color: AppColors
+                                      .success,
+                                ),
+                                const SizedBox(
+                                  height: 10,
+                                ),
+                                Text(
+                                  'انتهت جميع الأسئلة',
+                                  style:
+                                      AppTextStyles
+                                          .titleLarge,
+                                  textAlign:
+                                      TextAlign
+                                          .center,
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        if (widget.isLastQuestion)
+                          const SizedBox(
+                            height: 18,
+                          ),
+
                         Text(
                           widget.question.text,
-                          textAlign: TextAlign.center,
+                          textAlign:
+                              TextAlign.center,
                           style:
-                              AppTextStyles.titleLarge,
+                              AppTextStyles
+                                  .titleLarge,
                         ),
 
-                        const SizedBox(height: 8),
+                        const SizedBox(
+                          height: 8,
+                        ),
 
                         Text(
                           '$totalVotes صوتًا',
-                          textAlign: TextAlign.center,
+                          textAlign:
+                              TextAlign.center,
                           style:
-                              AppTextStyles.caption,
+                              AppTextStyles
+                                  .caption,
                         ),
 
-                        const SizedBox(height: 18),
+                        const SizedBox(
+                          height: 18,
+                        ),
 
-                        // Agreement summary.
                         LiquidGlassContainer(
                           child: Text(
                             'وافقك $agreedCount شخصًا في إجابتك',
-                            textAlign: TextAlign.center,
+                            textAlign:
+                                TextAlign.center,
                             style:
-                                AppTextStyles.titleMedium
+                                AppTextStyles
+                                    .titleMedium
                                     .copyWith(
                               color:
                                   _categoryColor,
@@ -208,172 +276,172 @@ class _OnlineResultScreenState
                           ),
                         ),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(
+                          height: 20,
+                        ),
 
-                        // Poll results.
                         ..._buildResults(
                           totalVotes,
                         ),
 
-                        const SizedBox(height: 24),
-
-                        // ─────────────────────
-                        // Social actions
-                        // ─────────────────────
-
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _SocialButton(
-                                icon: _liked
-                                    ? Icons.favorite
-                                    : Icons
-                                        .favorite_border,
-                                label: _liked
-                                    ? 'أعجبني'
-                                    : 'إعجاب',
-                                iconColor: _liked
-                                    ? AppColors.like
-                                    : AppColors
-                                        .textPrimary,
-                                onTap:
-                                    _toggleLike,
-                              ),
-                            ),
-
-                            const SizedBox(width: 12),
-
-                            Expanded(
-                              child: _SocialButton(
-                                icon:
-                                    Icons
-                                        .chat_bubble_outline,
-                                label:
-                                    '${comments.length} تعليق',
-                                iconColor:
-                                    AppColors
-                                        .textPrimary,
-                                onTap:
-                                    _openCommentField,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        // ─────────────────────
-                        // Comment composer
-                        // ─────────────────────
-
-                        LiquidGlassContainer(
-                          padding:
-                              const EdgeInsets
-                                  .symmetric(
-                            horizontal: 16,
-                            vertical: 6,
+                        if (widget.isLastQuestion) ...[
+                          const SizedBox(
+                            height: 24,
                           ),
-                          child: Row(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.end,
+
+                          Row(
                             children: [
                               Expanded(
                                 child:
-                                    TextField(
-                                  controller:
-                                      _commentController,
-                                  focusNode:
-                                      _commentFocusNode,
-                                  minLines: 1,
-                                  maxLines: 4,
-                                  textInputAction:
-                                      TextInputAction
-                                          .newline,
-                                  style:
-                                      AppTextStyles
-                                          .bodyMedium,
-                                  decoration:
-                                      const InputDecoration(
-                                    hintText:
-                                        'أضف تعليقًا...',
-                                    hintStyle:
-                                        AppTextStyles
-                                            .caption,
-                                    border:
-                                        InputBorder
-                                            .none,
-                                  ),
+                                    _SocialButton(
+                                  icon:
+                                      _liked
+                                          ? Icons
+                                              .favorite
+                                          : Icons
+                                              .favorite_border,
+                                  label:
+                                      _liked
+                                          ? 'أعجبني'
+                                          : 'إعجاب',
+                                  iconColor:
+                                      _liked
+                                          ? AppColors
+                                              .like
+                                          : AppColors
+                                              .textPrimary,
+                                  onTap:
+                                      _toggleLike,
                                 ),
                               ),
 
-                              IconButton(
-                                onPressed:
-                                    _addComment,
-                                tooltip:
-                                    'إرسال التعليق',
-                                icon:
-                                    const Icon(
-                                  Icons.send,
+                              const SizedBox(
+                                width: 12,
+                              ),
+
+                              Expanded(
+                                child:
+                                    _SocialButton(
+                                  icon:
+                                      Icons
+                                          .chat_bubble_outline,
+                                  label:
+                                      '${comments.length} تعليق',
+                                  iconColor:
+                                      AppColors
+                                          .textPrimary,
+                                  onTap: () {
+                                    _commentFocusNode
+                                        .requestFocus();
+                                  },
                                 ),
-                                color:
-                                    AppColors
-                                        .textPrimary,
                               ),
                             ],
                           ),
-                        ),
 
-                        // ─────────────────────
-                        // Comments
-                        // ─────────────────────
-
-                        if (comments.isNotEmpty) ...[
-                          const SizedBox(height: 20),
-
-                          Text(
-                            'التعليقات',
-                            style:
-                                AppTextStyles
-                                    .titleMedium,
+                          const SizedBox(
+                            height: 18,
                           ),
 
-                          const SizedBox(height: 12),
+                          LiquidGlassContainer(
+                            padding:
+                                const EdgeInsets
+                                    .symmetric(
+                              horizontal: 16,
+                              vertical: 6,
+                            ),
+                            child: Row(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment
+                                      .end,
+                              children: [
+                                Expanded(
+                                  child:
+                                      TextField(
+                                    controller:
+                                        _commentController,
+                                    focusNode:
+                                        _commentFocusNode,
+                                    minLines: 1,
+                                    maxLines: 4,
+                                    textInputAction:
+                                        TextInputAction
+                                            .newline,
+                                    style:
+                                        AppTextStyles
+                                            .bodyMedium,
+                                    decoration:
+                                        const InputDecoration(
+                                      hintText:
+                                          'أضف تعليقًا...',
+                                      hintStyle:
+                                          AppTextStyles
+                                              .caption,
+                                      border:
+                                          InputBorder
+                                              .none,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed:
+                                      _addComment,
+                                  icon:
+                                      const Icon(
+                                    Icons.send,
+                                  ),
+                                  color:
+                                      AppColors
+                                          .textPrimary,
+                                ),
+                              ],
+                            ),
+                          ),
 
-                          ...comments.map(
-                            (comment) =>
-                                Padding(
-                              padding:
-                                  const EdgeInsets
-                                      .only(
-                                bottom: 10,
-                              ),
-                              child:
-                                  LiquidGlassContainer(
-                                opacity: 0.055,
+                          if (comments
+                              .isNotEmpty) ...[
+                            const SizedBox(
+                              height: 20,
+                            ),
+
+                            Text(
+                              'التعليقات',
+                              style:
+                                  AppTextStyles
+                                      .titleMedium,
+                            ),
+
+                            const SizedBox(
+                              height: 12,
+                            ),
+
+                            ...comments.map(
+                              (comment) =>
+                                  Padding(
                                 padding:
                                     const EdgeInsets
-                                        .symmetric(
-                                  horizontal: 14,
-                                  vertical: 12,
+                                        .only(
+                                  bottom: 10,
                                 ),
-                                child: Text(
-                                  comment,
-                                  style:
-                                      AppTextStyles
-                                          .bodyMedium,
+                                child:
+                                    LiquidGlassContainer(
+                                  opacity:
+                                      0.055,
+                                  child: Text(
+                                    comment,
+                                    style:
+                                        AppTextStyles
+                                            .bodyMedium,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
                       ],
                     ),
                   ),
                 ),
-
-                // ─────────────────────────
-                // Back to Feed
-                // ─────────────────────────
 
                 Padding(
                   padding:
@@ -387,20 +455,28 @@ class _OnlineResultScreenState
                     width: double.infinity,
                     height: 52,
                     child: OutlinedButton.icon(
-                      onPressed: _backToFeed,
-                      icon: const Icon(
-                        Icons
-                            .arrow_back_rounded,
+                      onPressed:
+                          widget.isLastQuestion
+                              ? _backToFeed
+                              : _backToWheel,
+                      icon: Icon(
+                        widget.isLastQuestion
+                            ? Icons
+                                .arrow_back_rounded
+                            : Icons
+                                .casino_outlined,
                       ),
-                      label: const Text(
-                        'العودة إلى Feed',
+                      label: Text(
+                        widget.isLastQuestion
+                            ? 'العودة إلى Feed'
+                            : 'العودة إلى العجلة',
                       ),
                       style:
                           OutlinedButton.styleFrom(
                         foregroundColor:
-                            AppColors.textPrimary,
-                        side:
-                            BorderSide(
+                            AppColors
+                                .textPrimary,
+                        side: BorderSide(
                           color: AppColors
                               .titaniumBorder
                               .withOpacity(
@@ -434,10 +510,9 @@ class _OnlineResultScreenState
         final count =
             _results[option.id] ?? 0;
 
-        final percent =
-            totalVotes == 0
-                ? 0.0
-                : count / totalVotes;
+        final percent = totalVotes == 0
+            ? 0.0
+            : count / totalVotes;
 
         final isSelected =
             option.id ==
@@ -448,13 +523,13 @@ class _OnlineResultScreenState
               const EdgeInsets.only(
             bottom: 14,
           ),
-          child: LiquidGlassContainer(
+          child:
+              LiquidGlassContainer(
             opacity:
                 isSelected ? 0.12 : 0.055,
             child: Column(
               crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+                  CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
@@ -466,7 +541,6 @@ class _OnlineResultScreenState
                                 .bodyLarge,
                       ),
                     ),
-
                     Text(
                       '${(percent * 100).round()}%',
                       style:
@@ -481,11 +555,9 @@ class _OnlineResultScreenState
                     ),
                   ],
                 ),
-
                 const SizedBox(
                   height: 12,
                 ),
-
                 ClipRRect(
                   borderRadius:
                       BorderRadius.circular(
@@ -500,36 +572,25 @@ class _OnlineResultScreenState
                           0.07,
                         ),
                       ),
-
                       FractionallySizedBox(
                         widthFactor:
                             percent,
                         child: Container(
                           height: 10,
-                          decoration:
-                              BoxDecoration(
-                            color: isSelected
-                                ? _categoryColor
-                                : Colors.white
-                                    .withOpacity(
-                                0.42,
-                              ),
-                            borderRadius:
-                                BorderRadius
-                                    .circular(
-                              999,
-                            ),
-                          ),
+                          color: isSelected
+                              ? _categoryColor
+                              : Colors.white
+                                  .withOpacity(
+                                  0.42,
+                                ),
                         ),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(
                   height: 7,
                 ),
-
                 Text(
                   '$count صوت',
                   style:
