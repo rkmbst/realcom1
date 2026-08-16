@@ -11,46 +11,67 @@ import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
 import 'online_result_screen.dart';
 
-class OnlineQuestionScreen extends StatefulWidget {
+class OnlineQuestionScreen
+    extends StatefulWidget {
   final Question question;
   final Publisher publisher;
+  final bool isLastQuestion;
 
   const OnlineQuestionScreen({
     super.key,
     required this.question,
     required this.publisher,
+    required this.isLastQuestion,
   });
 
   @override
-  State<OnlineQuestionScreen> createState() => _OnlineQuestionScreenState();
+  State<OnlineQuestionScreen> createState() =>
+      _OnlineQuestionScreenState();
 }
 
-class _OnlineQuestionScreenState extends State<OnlineQuestionScreen> {
+class _OnlineQuestionScreenState
+    extends State<OnlineQuestionScreen> {
   late final List<QuestionOption> _options;
+
   String? _selectedOptionId;
-  
+
   late final Color _categoryColor;
 
   @override
   void initState() {
     super.initState();
-    _options = List.from(widget.question.options)..shuffle();
-    _categoryColor = AppCategories.byId(widget.question.categoryId).color;
+
+    _options =
+        List<QuestionOption>.from(
+      widget.question.options,
+    )..shuffle();
+
+    _categoryColor =
+        AppCategories.byId(
+      widget.question.categoryId,
+    ).color;
   }
 
   void _confirm() {
-    final selectedOptionId = _selectedOptionId;
+    final selectedOptionId =
+        _selectedOptionId;
 
-    if (selectedOptionId == null) return;
+    if (selectedOptionId == null) {
+      return;
+    }
 
     Haptics.light();
 
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => OnlineResultScreen(
+        builder: (_) =>
+            OnlineResultScreen(
           question: widget.question,
-          selectedOptionId: selectedOptionId,
+          selectedOptionId:
+              selectedOptionId,
+          isLastQuestion:
+              widget.isLastQuestion,
         ),
       ),
     );
@@ -58,123 +79,222 @@ class _OnlineQuestionScreenState extends State<OnlineQuestionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final category = AppCategories.byId(widget.question.categoryId);
+    final category =
+        AppCategories.byId(
+      widget.question.categoryId,
+    );
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor:
+          AppColors.background,
       appBar: AppBar(
-        title: const Text('سؤال أونلاين'),
+        title:
+            const Text('سؤال أونلاين'),
       ),
       body: Stack(
         children: [
           LiquidBackground(
-            primaryOrbColor: _categoryColor,
-            secondaryOrbColor: _categoryColor.withOpacity(0.6),
+            primaryOrbColor:
+                _categoryColor,
+            secondaryOrbColor:
+                _categoryColor
+                    .withOpacity(0.6),
           ),
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+            child:
+                SingleChildScrollView(
+              padding:
+                  const EdgeInsets.all(
+                24,
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment:
+                    CrossAxisAlignment
+                        .stretch,
                 children: [
                   LiquidGlassContainer(
-                    padding: const EdgeInsets.all(16),
+                    padding:
+                        const EdgeInsets.all(
+                      16,
+                    ),
                     child: Row(
                       children: [
                         Container(
                           width: 10,
                           height: 10,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: widget.publisher.accentColor,
+                          decoration:
+                              BoxDecoration(
+                            shape:
+                                BoxShape.circle,
+                            color: widget
+                                .publisher
+                                .accentColor,
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(
+                            width: 10),
                         Expanded(
                           child: Text(
-                            widget.publisher.name,
-                            style: AppTextStyles.titleMedium,
+                            widget.publisher
+                                .name,
+                            style:
+                                AppTextStyles
+                                    .titleMedium,
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(
+                          padding:
+                              const EdgeInsets
+                                  .symmetric(
                             horizontal: 12,
                             vertical: 8,
                           ),
-                          decoration: BoxDecoration(
-                            color: category.color.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: category.color),
+                          decoration:
+                              BoxDecoration(
+                            color: category
+                                .color
+                                .withOpacity(
+                              0.15,
+                            ),
+                            borderRadius:
+                                BorderRadius
+                                    .circular(
+                              999,
+                            ),
+                            border:
+                                Border.all(
+                              color:
+                                  category
+                                      .color,
+                            ),
                           ),
                           child: Text(
                             category.name,
-                            style: AppTextStyles.caption.copyWith(
-                              color: category.color,
+                            style:
+                                AppTextStyles
+                                    .caption
+                                    .copyWith(
+                              color:
+                                  category
+                                      .color,
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
+
                   const SizedBox(height: 32),
+
                   Text(
                     widget.question.text,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.displayLarge,
+                    textAlign:
+                        TextAlign.center,
+                    style:
+                        AppTextStyles
+                            .displayLarge,
                   ),
-                  const SizedBox(height: 32),
-                  ..._options.map((option) {
-                    final isSelected = _selectedOptionId == option.id;
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedOptionId = option.id;
-                          });
-                        },
-                        child: LiquidGlassContainer(
-                          opacity: isSelected ? 0.14 : 0.06,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
+                  const SizedBox(height: 32),
+
+                  ..._options.map(
+                    (option) {
+                      final isSelected =
+                          _selectedOptionId ==
+                              option.id;
+
+                      return Padding(
+                        padding:
+                            const EdgeInsets
+                                .only(
+                          bottom: 12,
+                        ),
+                        child:
+                            GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedOptionId =
+                                  option.id;
+                            });
+                          },
+                          child:
+                              LiquidGlassContainer(
+                            opacity:
                                 isSelected
-                                    ? Icons.radio_button_checked
-                                    : Icons.radio_button_off,
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.textSecondary,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  option.text,
-                                  style: AppTextStyles.bodyLarge,
+                                    ? 0.14
+                                    : 0.06,
+                            padding:
+                                const EdgeInsets
+                                    .symmetric(
+                              horizontal: 20,
+                              vertical: 16,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isSelected
+                                      ? Icons
+                                          .radio_button_checked
+                                      : Icons
+                                          .radio_button_off,
+                                  color: isSelected
+                                      ? _categoryColor
+                                      : AppColors
+                                          .textSecondary,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(
+                                    width: 12),
+                                Expanded(
+                                  child: Text(
+                                    option.text,
+                                    style:
+                                        AppTextStyles
+                                            .bodyLarge,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    },
+                  ),
+
                   const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: _selectedOptionId == null ? null : _confirm,
-                    icon: const Icon(Icons.check),
-                    label: const Text('تأكيد الإجابة'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.textPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
+
+                  ElevatedButton(
+                    onPressed:
+                        _selectedOptionId ==
+                                null
+                            ? null
+                            : _confirm,
+                    style:
+                        ElevatedButton
+                            .styleFrom(
+                      backgroundColor:
+                          AppColors
+                              .titanium,
+                      foregroundColor:
+                          AppColors
+                              .onTitanium,
+                      padding:
+                          const EdgeInsets
+                              .symmetric(
+                        vertical: 14,
                       ),
+                      elevation: 0,
+                      shape:
+                          RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius
+                                .circular(
+                          18,
+                        ),
+                      ),
+                    ),
+                    child:
+                        const Text(
+                      'تأكيد الإجابة',
                     ),
                   ),
                 ],
