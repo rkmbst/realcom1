@@ -45,7 +45,8 @@ class _PublisherWheelScreenState
   bool _isSpinning = false;
 
   int? _selectedSlot;
-  Color _ambientColor = AppColors.primary;
+
+  Color _ambientColor = AppColors.secondary;
 
   @override
   void initState() {
@@ -78,12 +79,31 @@ class _PublisherWheelScreenState
   }
 
   Color _spinningAmbientColor() {
-    final phase = (sin(_rotation * 0.55) + 1) / 2;
+    const colors = <Color>[
+      AppColors.secondary,
+      Color(0xFF3D8BFF),
+      AppColors.success,
+      AppColors.warning,
+      AppColors.error,
+    ];
+
+    const speed = 0.48;
+
+    final raw =
+        (_rotation * speed) % colors.length;
+
+    final index = raw.floor();
+    final nextIndex =
+        (index + 1) % colors.length;
+
+    final t = Curves.easeInOut.transform(
+      raw - index,
+    );
 
     return Color.lerp(
-      AppColors.primary,
-      AppColors.secondary,
-      phase * 0.35,
+      colors[index],
+      colors[nextIndex],
+      t,
     )!;
   }
 
@@ -94,7 +114,9 @@ class _PublisherWheelScreenState
 
     final unusedIndexes = <int>[];
 
-    for (int i = 0; i < widget.questions.length; i++) {
+    for (int i = 0;
+        i < widget.questions.length;
+        i++) {
       if (!_usedQuestionIds.contains(
         widget.questions[i].id,
       )) {
@@ -108,9 +130,10 @@ class _PublisherWheelScreenState
     }
 
     final selectedIndex =
-        unusedIndexes[_random.nextInt(
-      unusedIndexes.length,
-    )];
+        unusedIndexes[
+            _random.nextInt(
+          unusedIndexes.length,
+        )];
 
     final selectedSlot = _questionIndexToSlot(
       selectedIndex,
@@ -134,7 +157,7 @@ class _PublisherWheelScreenState
     }
 
     targetRotation +=
-        (5 + _random.nextInt(3)) * 2 * pi;
+        (7 + _random.nextInt(3)) * 2 * pi;
 
     setState(() {
       _isSpinning = true;
@@ -145,7 +168,8 @@ class _PublisherWheelScreenState
 
     await _controller.animateTo(
       targetRotation,
-      duration: const Duration(milliseconds: 3200),
+      duration:
+          const Duration(milliseconds: 5600),
       curve: Curves.easeOutCubic,
     );
 
@@ -161,7 +185,15 @@ class _PublisherWheelScreenState
       selectedQuestion.categoryId,
     );
 
-    _usedQuestionIds.add(selectedQuestion.id);
+    _usedQuestionIds.add(
+      selectedQuestion.id,
+    );
+
+    // This is the important part:
+    // after this question, are there no questions left?
+    final isLastQuestion =
+        _usedQuestionIds.length >=
+        widget.questions.length;
 
     setState(() {
       _rotation = targetRotation;
@@ -184,6 +216,7 @@ class _PublisherWheelScreenState
         builder: (_) => OnlineQuestionScreen(
           question: selectedQuestion,
           publisher: widget.publisher,
+          isLastQuestion: isLastQuestion,
         ),
       ),
     );
@@ -202,7 +235,8 @@ class _PublisherWheelScreenState
         return AlertDialog(
           backgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius:
+                BorderRadius.circular(22),
           ),
           title: const Text(
             'اكتملت أسئلة الناشر',
@@ -214,11 +248,13 @@ class _PublisherWheelScreenState
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () =>
+                  Navigator.pop(context),
               child: const Text(
                 'خروج',
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color:
+                      AppColors.textSecondary,
                 ),
               ),
             ),
@@ -227,7 +263,8 @@ class _PublisherWheelScreenState
                 setState(() {
                   _usedQuestionIds.clear();
                   _selectedSlot = null;
-                  _ambientColor = AppColors.primary;
+                  _ambientColor =
+                      AppColors.secondary;
                 });
 
                 Navigator.pop(context);
@@ -235,7 +272,8 @@ class _PublisherWheelScreenState
               child: const Text(
                 'إعادة الجولة',
                 style: TextStyle(
-                  color: AppColors.primary,
+                  color:
+                      AppColors.titanium,
                 ),
               ),
             ),
@@ -253,34 +291,41 @@ class _PublisherWheelScreenState
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+    final screenWidth =
+        MediaQuery.of(context).size.width;
 
     final wheelSize = min(
       screenWidth * 0.84,
       390.0,
     );
 
-    final backgroundColor = _isSpinning
-        ? _spinningAmbientColor()
-        : _ambientColor;
+    final backgroundColor =
+        _isSpinning
+            ? _spinningAmbientColor()
+            : _ambientColor;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor:
+          AppColors.background,
       appBar: AppBar(
-        title: Text(widget.publisher.name),
+        title:
+            Text(widget.publisher.name),
       ),
       body: Stack(
         children: [
           LiquidBackground(
-            primaryOrbColor: backgroundColor,
+            primaryOrbColor:
+                backgroundColor,
             secondaryOrbColor:
-                backgroundColor.withOpacity(0.55),
+                backgroundColor.withOpacity(
+              0.55,
+            ),
           ),
-
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
+                padding:
+                    const EdgeInsets.symmetric(
                   vertical: 24,
                 ),
                 child: Column(
@@ -291,78 +336,69 @@ class _PublisherWheelScreenState
                       widget.pack.title,
                       style:
                           AppTextStyles.titleLarge,
-                      textAlign: TextAlign.center,
+                      textAlign:
+                          TextAlign.center,
                     ),
-
                     const SizedBox(height: 8),
-
                     Text(
                       '${widget.questions.length} أسئلة',
-                      style: AppTextStyles.caption,
+                      style:
+                          AppTextStyles.caption,
                     ),
-
                     const SizedBox(height: 22),
-
                     LiquidGlassContainer(
                       borderRadius: 999,
-                      padding: const EdgeInsets.all(6),
-                      child: AuroraTitaniumWheel(
+                      padding:
+                          const EdgeInsets.all(6),
+                      child:
+                          AuroraTitaniumWheel(
                         rotation: _rotation,
-                        selectedSlot: _selectedSlot,
+                        selectedSlot:
+                            _selectedSlot,
                         size: wheelSize,
                       ),
                     ),
-
-                    const SizedBox(height: 28),
-
-                    const Text(
-                      'I  ·  II  ·  III  ·  IV  ·  V  ·  VI  ·  VII  ·  VIII  ·  IX  ·  X  ·  XI  ·  XII',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppColors.textDisabled,
-                        fontSize: 12,
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    Padding(
-                      padding:
-                          const EdgeInsets.symmetric(
-                        horizontal: 32,
-                      ),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton(
+                    const SizedBox(height: 30),
+                    SizedBox(
+                      width:
+                          double.infinity,
+                      height: 54,
+                      child:
+                          Padding(
+                        padding:
+                            const EdgeInsets
+                                .symmetric(
+                          horizontal: 32,
+                        ),
+                        child:
+                            ElevatedButton(
                           onPressed:
                               _isSpinning
                                   ? null
                                   : _spin,
                           style:
-                              ElevatedButton.styleFrom(
+                              ElevatedButton
+                                  .styleFrom(
                             backgroundColor:
-                                AppColors.primary,
+                                AppColors
+                                    .titanium,
                             foregroundColor:
-                                AppColors.textPrimary,
-                            disabledBackgroundColor:
-                                AppColors.primary
-                                    .withOpacity(0.35),
+                                AppColors
+                                    .onTitanium,
+                            elevation: 0,
                             shape:
                                 RoundedRectangleBorder(
                               borderRadius:
-                                  BorderRadius.circular(
+                                  BorderRadius
+                                      .circular(
                                 18,
                               ),
                             ),
-                            elevation: 0,
                           ),
                           child: Text(
                             _isSpinning
                                 ? 'جاري الدوران...'
                                 : 'دور العجلة',
-                            style:
-                                AppTextStyles.button,
                           ),
                         ),
                       ),
