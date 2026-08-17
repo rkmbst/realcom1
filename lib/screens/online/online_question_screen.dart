@@ -9,10 +9,10 @@ import '../../models/question.dart';
 import '../../models/question_option.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
+import '../profile/profile_screen.dart';
 import 'online_result_screen.dart';
 
-class OnlineQuestionScreen
-    extends StatefulWidget {
+class OnlineQuestionScreen extends StatefulWidget {
   final Question question;
   final Publisher publisher;
   final bool isLastQuestion;
@@ -41,20 +41,17 @@ class _OnlineQuestionScreenState
   void initState() {
     super.initState();
 
-    _options =
-        List<QuestionOption>.from(
+    _options = List<QuestionOption>.from(
       widget.question.options,
     )..shuffle();
 
-    _categoryColor =
-        AppCategories.byId(
+    _categoryColor = AppCategories.byId(
       widget.question.categoryId,
     ).color;
   }
 
   void _confirm() {
-    final selectedOptionId =
-        _selectedOptionId;
+    final selectedOptionId = _selectedOptionId;
 
     if (selectedOptionId == null) {
       return;
@@ -65,13 +62,10 @@ class _OnlineQuestionScreenState
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            OnlineResultScreen(
+        builder: (_) => OnlineResultScreen(
           question: widget.question,
-          selectedOptionId:
-              selectedOptionId,
-          isLastQuestion:
-              widget.isLastQuestion,
+          selectedOptionId: selectedOptionId,
+          isLastQuestion: widget.isLastQuestion,
         ),
       ),
     );
@@ -79,153 +73,108 @@ class _OnlineQuestionScreenState
 
   @override
   Widget build(BuildContext context) {
-    final category =
-        AppCategories.byId(
+    final category = AppCategories.byId(
       widget.question.categoryId,
     );
 
     return Scaffold(
-      backgroundColor:
-          AppColors.background,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title:
-            const Text('سؤال أونلاين'),
+        title: const Text('سؤال أونلاين'),
       ),
       body: Stack(
         children: [
           LiquidBackground(
-            primaryOrbColor:
-                _categoryColor,
-            secondaryOrbColor:
-                _categoryColor
-                    .withOpacity(0.6),
+            primaryOrbColor: _categoryColor,
+            secondaryOrbColor: _categoryColor.withOpacity(0.6),
           ),
           SafeArea(
-            child:
-                SingleChildScrollView(
-              padding:
-                  const EdgeInsets.all(
-                24,
-              ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   LiquidGlassContainer(
-                    padding:
-                        const EdgeInsets.all(
-                      16,
-                    ),
+                    padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
                         Container(
                           width: 10,
                           height: 10,
-                          decoration:
-                              BoxDecoration(
-                            shape:
-                                BoxShape.circle,
-                            color: widget
-                                .publisher
-                                .accentColor,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: widget.publisher.accentColor,
                           ),
                         ),
-                        const SizedBox(
-                            width: 10),
+                        const SizedBox(width: 10),
                         Expanded(
-                          child: Text(
-                            widget.publisher
-                                .name,
-                            style:
-                                AppTextStyles
-                                    .titleMedium,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ProfileScreen(
+                                    userId: widget.publisher.id,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                              ),
+                              child: Text(
+                                widget.publisher.name,
+                                style: AppTextStyles.username,
+                              ),
+                            ),
                           ),
                         ),
                         Container(
-                          padding:
-                              const EdgeInsets
-                                  .symmetric(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: 12,
                             vertical: 8,
                           ),
-                          decoration:
-                              BoxDecoration(
-                            color: category
-                                .color
-                                .withOpacity(
-                              0.15,
-                            ),
-                            borderRadius:
-                                BorderRadius
-                                    .circular(
-                              999,
-                            ),
-                            border:
-                                Border.all(
-                              color:
-                                  category
-                                      .color,
+                          decoration: BoxDecoration(
+                            color: category.color.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: category.color,
                             ),
                           ),
                           child: Text(
                             category.name,
-                            style:
-                                AppTextStyles
-                                    .caption
-                                    .copyWith(
-                              color:
-                                  category
-                                      .color,
+                            style: AppTextStyles.caption.copyWith(
+                              color: category.color,
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 32),
-
                   Text(
                     widget.question.text,
-                    textAlign:
-                        TextAlign.center,
-                    style:
-                        AppTextStyles
-                            .displayLarge,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.displayLarge,
                   ),
-
                   const SizedBox(height: 32),
-
                   ..._options.map(
                     (option) {
-                      final isSelected =
-                          _selectedOptionId ==
-                              option.id;
+                      final isSelected = _selectedOptionId == option.id;
 
                       return Padding(
-                        padding:
-                            const EdgeInsets
-                                .only(
-                          bottom: 12,
-                        ),
-                        child:
-                            GestureDetector(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: GestureDetector(
                           onTap: () {
                             setState(() {
-                              _selectedOptionId =
-                                  option.id;
+                              _selectedOptionId = option.id;
                             });
                           },
-                          child:
-                              LiquidGlassContainer(
-                            opacity:
-                                isSelected
-                                    ? 0.14
-                                    : 0.06,
-                            padding:
-                                const EdgeInsets
-                                    .symmetric(
+                          child: LiquidGlassContainer(
+                            opacity: isSelected ? 0.14 : 0.06,
+                            padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: 16,
                             ),
@@ -233,23 +182,17 @@ class _OnlineQuestionScreenState
                               children: [
                                 Icon(
                                   isSelected
-                                      ? Icons
-                                          .radio_button_checked
-                                      : Icons
-                                          .radio_button_off,
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_off,
                                   color: isSelected
                                       ? _categoryColor
-                                      : AppColors
-                                          .textSecondary,
+                                      : AppColors.textSecondary,
                                 ),
-                                const SizedBox(
-                                    width: 12),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
                                     option.text,
-                                    style:
-                                        AppTextStyles
-                                            .bodyLarge,
+                                    style: AppTextStyles.bodyLarge,
                                   ),
                                 ),
                               ],
@@ -259,43 +202,21 @@ class _OnlineQuestionScreenState
                       );
                     },
                   ),
-
                   const SizedBox(height: 24),
-
                   ElevatedButton(
-                    onPressed:
-                        _selectedOptionId ==
-                                null
-                            ? null
-                            : _confirm,
-                    style:
-                        ElevatedButton
-                            .styleFrom(
-                      backgroundColor:
-                          AppColors
-                              .titanium,
-                      foregroundColor:
-                          AppColors
-                              .onTitanium,
-                      padding:
-                          const EdgeInsets
-                              .symmetric(
+                    onPressed: _selectedOptionId == null ? null : _confirm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.titanium,
+                      foregroundColor: AppColors.onTitanium,
+                      padding: const EdgeInsets.symmetric(
                         vertical: 14,
                       ),
                       elevation: 0,
-                      shape:
-                          RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius
-                                .circular(
-                          18,
-                        ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
                       ),
                     ),
-                    child:
-                        const Text(
-                      'تأكيد الإجابة',
-                    ),
+                    child: const Text('تأكيد الإجابة'),
                   ),
                 ],
               ),
