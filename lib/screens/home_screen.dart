@@ -7,6 +7,7 @@ import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
 import 'local/local_players_screen.dart';
 import 'online/online_feed_screen.dart';
+import 'profile/profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -69,6 +70,20 @@ class HomeScreen extends StatelessWidget {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const LocalPlayersScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    GlassButton(
+                      text: 'الملف الشخصي',
+                      icon: Icons.person_outline_rounded,
+                      isPrimary: false,
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ProfileScreen(),
                           ),
                         );
                       },
