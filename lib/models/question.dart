@@ -16,6 +16,11 @@ class Question {
   /// older poll-style questions.
   final String? correctOptionId;
 
+  /// Optional discovery hashtags.
+  ///
+  /// Stored without the leading '#'.
+  final List<String> hashtags;
+
   const Question({
     required this.id,
     required this.text,
@@ -24,5 +29,6 @@ class Question {
     this.authorName,
     this.authorId,
     this.correctOptionId,
+    this.hashtags = const [],
   });
 }
