@@ -1,4 +1,4 @@
-hereimport 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../core/auth/auth_session.dart';
 import '../../core/auth/user_directory.dart';
@@ -11,10 +11,10 @@ import '../../widgets/follow_button.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
 import '../../widgets/user_avatar.dart';
+import '../online/add_question_screen.dart';
 import 'edit_profile_screen.dart';
 
-class ProfileScreen
-    extends StatefulWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     super.key,
     this.userId,
@@ -23,24 +23,18 @@ class ProfileScreen
   final String? userId;
 
   @override
-  State<ProfileScreen> createState() =>
-      _ProfileScreenState();
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState
-    extends State<ProfileScreen>
+class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
-  final _session =
-      AuthSession.instance;
+  final _session = AuthSession.instance;
 
-  final _directory =
-      UserDirectory.instance;
+  final _directory = UserDirectory.instance;
 
-  final _followStore =
-      FollowStore.instance;
+  final _followStore = FollowStore.instance;
 
-  late final TabController
-      _tabController;
+  late final TabController _tabController;
 
   @override
   void initState() {
@@ -62,8 +56,20 @@ class _ProfileScreenState
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            const EditProfileScreen(),
+        builder: (_) => const EditProfileScreen(),
+      ),
+    );
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _addQuestion() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const AddQuestionScreen(),
       ),
     );
 
@@ -80,245 +86,166 @@ class _ProfileScreenState
 
   @override
   Widget build(BuildContext context) {
-    final currentUser =
-        _session.currentUser;
+    final currentUser = _session.currentUser;
 
-    final viewedUser =
-        widget.userId == null ||
-                widget.userId ==
-                    currentUser.id
-            ? currentUser
-            : _directory.find(
-                widget.userId!,
-              );
+    final viewedUser = widget.userId == null ||
+            widget.userId == currentUser.id
+        ? currentUser
+        : _directory.find(widget.userId!);
 
     if (viewedUser == null) {
       return Scaffold(
-        backgroundColor:
-            AppColors.background,
+        backgroundColor: AppColors.background,
         appBar: AppBar(
-          title:
-              const Text('الملف الشخصي'),
+          title: const Text('الملف الشخصي'),
         ),
         body: const Center(
           child: Text(
             'لم يتم العثور على المستخدم.',
-            style:
-                AppTextStyles.bodyLarge,
+            style: AppTextStyles.bodyLarge,
           ),
         ),
       );
     }
 
-    final isOwnProfile =
-        viewedUser.id ==
-            currentUser.id;
+    final isOwnProfile = viewedUser.id == currentUser.id;
 
-    final isFollowing =
-        _followStore.isFollowing(
+    final isFollowing = _followStore.isFollowing(
       viewedUser.id,
     );
 
-    final followerCount =
-        viewedUser.followersCount +
-            _followStore.followerCount(
-              viewedUser.id,
-            );
+    final followerCount = viewedUser.followersCount +
+        _followStore.followerCount(
+          viewedUser.id,
+        );
 
     return Scaffold(
-      backgroundColor:
-          AppColors.background,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title:
-            Text(viewedUser.username),
+        title: Text(viewedUser.username),
       ),
       body: Stack(
         children: [
           const LiquidBackground(),
-
           SafeArea(
-            child:
-                NestedScrollView(
-              headerSliverBuilder:
-                  (
-                context,
-                innerBoxIsScrolled,
-              ) {
+            child: NestedScrollView(
+              headerSliverBuilder: (context, innerBoxIsScrolled) {
                 return [
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding:
-                          const EdgeInsets.fromLTRB(
+                      padding: const EdgeInsets.fromLTRB(
                         AppSpacing.x24,
                         AppSpacing.x16,
                         AppSpacing.x24,
                         AppSpacing.x24,
                       ),
-                      child:
-                          LiquidGlassContainer(
-                        padding:
-                            const EdgeInsets.all(
-                          AppSpacing.x16,
-                        ),
-                        child:
-                            Column(
+                      child: LiquidGlassContainer(
+                        padding: const EdgeInsets.all(AppSpacing.x16),
+                        child: Column(
                           children: [
                             UserAvatar(
-                              imageUrl:
-                                  viewedUser
-                                      .avatarUrl,
+                              imageUrl: viewedUser.avatarUrl,
                               size: 96,
                             ),
-
-                            const SizedBox(
-                              height:
-                                  AppSpacing.x16,
-                            ),
-
+                            const SizedBox(height: AppSpacing.x16),
                             Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment
-                                      .center,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  viewedUser
-                                      .displayName,
-                                  style:
-                                      AppTextStyles
-                                          .titleLarge,
+                                  viewedUser.displayName,
+                                  style: AppTextStyles.titleLarge,
                                 ),
-
-                                if (viewedUser
-                                    .isVerified) ...[
-                                  const SizedBox(
-                                    width: 4,
-                                  ),
+                                if (viewedUser.isVerified) ...[
+                                  const SizedBox(width: 4),
                                   const Icon(
-                                    Icons
-                                        .verified_rounded,
+                                    Icons.verified_rounded,
                                     size: 18,
-                                    color:
-                                        AppColors
-                                            .secondary,
+                                    color: AppColors.secondary,
                                   ),
                                 ],
                               ],
                             ),
-
-                            const SizedBox(
-                              height:
-                                  AppSpacing.x4,
-                            ),
-
+                            const SizedBox(height: AppSpacing.x4),
                             Text(
                               '@${viewedUser.username}',
-                              style:
-                                  AppTextStyles
-                                      .username,
+                              style: AppTextStyles.username,
                             ),
-
-                            if (viewedUser
-                                .bio
-                                .trim()
-                                .isNotEmpty) ...[
-                              const SizedBox(
-                                height:
-                                    AppSpacing.x12,
-                              ),
+                            if (viewedUser.bio.trim().isNotEmpty) ...[
+                              const SizedBox(height: AppSpacing.x12),
                               Text(
-                                viewedUser
-                                    .bio,
-                                textAlign:
-                                    TextAlign
-                                        .center,
-                                style:
-                                    AppTextStyles
-                                        .bodyMedium,
+                                viewedUser.bio,
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.bodyMedium,
                               ),
                             ],
-
-                            const SizedBox(
-                              height:
-                                  AppSpacing.x24,
-                            ),
-
+                            const SizedBox(height: AppSpacing.x24),
                             Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment
-                                      .spaceEvenly,
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 _Stat(
-                                  value:
-                                      '${viewedUser.questionCount}',
-                                  label:
-                                      'أسئلة',
+                                  value: '${viewedUser.questionCount}',
+                                  label: 'أسئلة',
                                 ),
                                 _Stat(
-                                  value:
-                                      '$followerCount',
-                                  label:
-                                      'متابعون',
+                                  value: '$followerCount',
+                                  label: 'متابعون',
                                 ),
                                 _Stat(
-                                  value:
-                                      '${viewedUser.followingCount}',
-                                  label:
-                                      'يتابع',
+                                  value: '${viewedUser.followingCount}',
+                                  label: 'يتابع',
                                 ),
                               ],
                             ),
-
-                            const SizedBox(
-                              height:
-                                  AppSpacing.x16,
-                            ),
-
-                            if (isOwnProfile)
+                            const SizedBox(height: AppSpacing.x16),
+                            if (isOwnProfile) ...[
                               SizedBox(
-                                width:
-                                    double.infinity,
+                                width: double.infinity,
                                 height: 44,
-                                child:
-                                    OutlinedButton(
-                                  onPressed:
-                                      _editProfile,
-                                  style:
-                                      OutlinedButton
-                                          .styleFrom(
-                                    foregroundColor:
-                                        AppColors
-                                            .textPrimary,
-                                    side:
-                                        BorderSide(
-                                      color: AppColors
-                                          .titaniumBorder
-                                          .withOpacity(
-                                        0.65,
-                                      ),
+                                child: OutlinedButton(
+                                  onPressed: _editProfile,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.textPrimary,
+                                    side: BorderSide(
+                                      color: AppColors.titaniumBorder
+                                          .withOpacity(0.65),
                                     ),
-                                    shape:
-                                        RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius
-                                              .circular(
-                                        AppRadius
-                                            .button,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        AppRadius.button,
                                       ),
                                     ),
                                   ),
-                                  child:
-                                      const Text(
-                                    'تعديل الملف',
+                                  child: const Text('تعديل الملف'),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 44,
+                                child: ElevatedButton.icon(
+                                  onPressed: _addQuestion,
+                                  icon: const Icon(
+                                    Icons.add_rounded,
+                                    size: 20,
+                                  ),
+                                  label: const Text('إضافة سؤال'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: AppColors.onPrimary,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        AppRadius.button,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              )
-                            else
+                              ),
+                            ] else
                               FollowButton(
-                                isFollowing:
-                                    isFollowing,
+                                isFollowing: isFollowing,
                                 expanded: true,
-                                onPressed: () =>
-                                    _toggleFollow(
+                                onPressed: () => _toggleFollow(
                                   viewedUser.id,
                                 ),
                               ),
@@ -327,48 +254,32 @@ class _ProfileScreenState
                       ),
                     ),
                   ),
-
                   SliverPersistentHeader(
                     pinned: true,
-                    delegate:
-                        _ProfileTabsDelegate(
+                    delegate: _ProfileTabsDelegate(
                       TabBar(
-                        controller:
-                            _tabController,
-                        indicatorColor:
-                            AppColors.primary,
+                        controller: _tabController,
+                        indicatorColor: AppColors.primary,
                         indicatorWeight: 2,
-                        labelColor:
-                            AppColors
-                                .textPrimary,
-                        unselectedLabelColor:
-                            AppColors
-                                .textSecondary,
+                        labelColor: AppColors.textPrimary,
+                        unselectedLabelColor: AppColors.textSecondary,
                         tabs: const [
-                          Tab(
-                            text: 'الأسئلة',
-                          ),
-                          Tab(
-                            text: 'الإعجابات',
-                          ),
+                          Tab(text: 'الأسئلة'),
+                          Tab(text: 'الإعجابات'),
                         ],
                       ),
                     ),
                   ),
                 ];
               },
-              body:
-                  TabBarView(
-                controller:
-                    _tabController,
+              body: TabBarView(
+                controller: _tabController,
                 children: const [
                   _ProfileEmptyState(
-                    text:
-                        'لا توجد أسئلة بعد',
+                    text: 'لا توجد أسئلة بعد',
                   ),
                   _ProfileEmptyState(
-                    text:
-                        'لا توجد إعجابات بعد',
+                    text: 'لا توجد إعجابات بعد',
                   ),
                 ],
               ),
@@ -380,8 +291,7 @@ class _ProfileScreenState
   }
 }
 
-class _Stat
-    extends StatelessWidget {
+class _Stat extends StatelessWidget {
   const _Stat({
     required this.value,
     required this.label,
@@ -396,22 +306,19 @@ class _Stat
       children: [
         Text(
           value,
-          style:
-              AppTextStyles.titleMedium,
+          style: AppTextStyles.titleMedium,
         ),
         const SizedBox(height: 4),
         Text(
           label,
-          style:
-              AppTextStyles.caption,
+          style: AppTextStyles.caption,
         ),
       ],
     );
   }
 }
 
-class _ProfileEmptyState
-    extends StatelessWidget {
+class _ProfileEmptyState extends StatelessWidget {
   const _ProfileEmptyState({
     required this.text,
   });
@@ -422,27 +329,19 @@ class _ProfileEmptyState
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding:
-            const EdgeInsets.all(
-          AppSpacing.x32,
-        ),
+        padding: const EdgeInsets.all(AppSpacing.x32),
         child: Text(
           text,
-          textAlign:
-              TextAlign.center,
-          style:
-              AppTextStyles.bodyMedium,
+          textAlign: TextAlign.center,
+          style: AppTextStyles.bodyMedium,
         ),
       ),
     );
   }
 }
 
-class _ProfileTabsDelegate
-    extends SliverPersistentHeaderDelegate {
-  const _ProfileTabsDelegate(
-    this.tabBar,
-  );
+class _ProfileTabsDelegate extends SliverPersistentHeaderDelegate {
+  const _ProfileTabsDelegate(this.tabBar);
 
   final TabBar tabBar;
 
@@ -459,17 +358,13 @@ class _ProfileTabsDelegate
     bool overlapsContent,
   ) {
     return Container(
-      color:
-          AppColors.surface,
+      color: AppColors.surface,
       child: tabBar,
     );
   }
 
   @override
-  bool shouldRebuild(
-    covariant _ProfileTabsDelegate
-        oldDelegate,
-  ) {
+  bool shouldRebuild(covariant _ProfileTabsDelegate oldDelegate) {
     return false;
   }
 }
