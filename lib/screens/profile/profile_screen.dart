@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+hereimport 'package:flutter/material.dart';
 
 import '../../core/auth/auth_session.dart';
+import '../../core/auth/user_directory.dart';
+import '../../core/social/follow_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -31,17 +33,20 @@ class _ProfileScreenState
   final _session =
       AuthSession.instance;
 
+  final _directory =
+      UserDirectory.instance;
+
+  final _followStore =
+      FollowStore.instance;
+
   late final TabController
       _tabController;
-
-  bool _isFollowing = false;
 
   @override
   void initState() {
     super.initState();
 
-    _tabController =
-        TabController(
+    _tabController = TabController(
       length: 2,
       vsync: this,
     );
@@ -51,12 +56,6 @@ class _ProfileScreenState
   void dispose() {
     _tabController.dispose();
     super.dispose();
-  }
-
-  void _toggleFollow() {
-    setState(() {
-      _isFollowing = !_isFollowing;
-    });
   }
 
   Future<void> _editProfile() async {
@@ -73,44 +72,81 @@ class _ProfileScreenState
     }
   }
 
+  void _toggleFollow(String userId) {
+    _followStore.toggleFollow(userId);
+
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
-    final user =
+    final currentUser =
         _session.currentUser;
 
-    final isOwnProfile =
+    final viewedUser =
         widget.userId == null ||
-            widget.userId ==
-                user.id;
+                widget.userId ==
+                    currentUser.id
+            ? currentUser
+            : _directory.find(
+                widget.userId!,
+              );
+
+    if (viewedUser == null) {
+      return Scaffold(
+        backgroundColor:
+            AppColors.background,
+        appBar: AppBar(
+          title:
+              const Text('الملف الشخصي'),
+        ),
+        body: const Center(
+          child: Text(
+            'لم يتم العثور على المستخدم.',
+            style:
+                AppTextStyles.bodyLarge,
+          ),
+        ),
+      );
+    }
+
+    final isOwnProfile =
+        viewedUser.id ==
+            currentUser.id;
+
+    final isFollowing =
+        _followStore.isFollowing(
+      viewedUser.id,
+    );
+
+    final followerCount =
+        viewedUser.followersCount +
+            _followStore.followerCount(
+              viewedUser.id,
+            );
 
     return Scaffold(
       backgroundColor:
           AppColors.background,
       appBar: AppBar(
         title:
-            Text(user.username),
-        actions: [
-          IconButton(
-            tooltip: 'الإعدادات',
-            onPressed: () {},
-            icon: const Icon(
-              Icons.settings_outlined,
-              size: 24,
-            ),
-          ),
-        ],
+            Text(viewedUser.username),
       ),
       body: Stack(
         children: [
           const LiquidBackground(),
+
           SafeArea(
-            child: NestedScrollView(
+            child:
+                NestedScrollView(
               headerSliverBuilder:
-                  (context, innerBoxIsScrolled) {
+                  (
+                context,
+                innerBoxIsScrolled,
+              ) {
                 return [
                   SliverToBoxAdapter(
-                    child:
-                        Padding(
+                    child: Padding(
                       padding:
                           const EdgeInsets.fromLTRB(
                         AppSpacing.x24,
@@ -129,7 +165,8 @@ class _ProfileScreenState
                           children: [
                             UserAvatar(
                               imageUrl:
-                                  user.avatarUrl,
+                                  viewedUser
+                                      .avatarUrl,
                               size: 96,
                             ),
 
@@ -144,12 +181,14 @@ class _ProfileScreenState
                                       .center,
                               children: [
                                 Text(
-                                  user.displayName,
+                                  viewedUser
+                                      .displayName,
                                   style:
                                       AppTextStyles
                                           .titleLarge,
                                 ),
-                                if (user
+
+                                if (viewedUser
                                     .isVerified) ...[
                                   const SizedBox(
                                     width: 4,
@@ -158,8 +197,9 @@ class _ProfileScreenState
                                     Icons
                                         .verified_rounded,
                                     size: 18,
-                                    color: AppColors
-                                        .secondary,
+                                    color:
+                                        AppColors
+                                            .secondary,
                                   ),
                                 ],
                               ],
@@ -171,13 +211,14 @@ class _ProfileScreenState
                             ),
 
                             Text(
-                              '@${user.username}',
+                              '@${viewedUser.username}',
                               style:
                                   AppTextStyles
                                       .username,
                             ),
 
-                            if (user.bio
+                            if (viewedUser
+                                .bio
                                 .trim()
                                 .isNotEmpty) ...[
                               const SizedBox(
@@ -185,9 +226,11 @@ class _ProfileScreenState
                                     AppSpacing.x12,
                               ),
                               Text(
-                                user.bio,
+                                viewedUser
+                                    .bio,
                                 textAlign:
-                                    TextAlign.center,
+                                    TextAlign
+                                        .center,
                                 style:
                                     AppTextStyles
                                         .bodyMedium,
@@ -206,19 +249,19 @@ class _ProfileScreenState
                               children: [
                                 _Stat(
                                   value:
-                                      '${user.questionCount}',
+                                      '${viewedUser.questionCount}',
                                   label:
                                       'أسئلة',
                                 ),
                                 _Stat(
                                   value:
-                                      '${user.followersCount}',
+                                      '$followerCount',
                                   label:
                                       'متابعون',
                                 ),
                                 _Stat(
                                   value:
-                                      '${user.followingCount}',
+                                      '${viewedUser.followingCount}',
                                   label:
                                       'يتابع',
                                 ),
@@ -272,10 +315,12 @@ class _ProfileScreenState
                             else
                               FollowButton(
                                 isFollowing:
-                                    _isFollowing,
+                                    isFollowing,
                                 expanded: true,
-                                onPressed:
-                                    _toggleFollow,
+                                onPressed: () =>
+                                    _toggleFollow(
+                                  viewedUser.id,
+                                ),
                               ),
                           ],
                         ),
@@ -294,9 +339,11 @@ class _ProfileScreenState
                             AppColors.primary,
                         indicatorWeight: 2,
                         labelColor:
-                            AppColors.textPrimary,
+                            AppColors
+                                .textPrimary,
                         unselectedLabelColor:
-                            AppColors.textSecondary,
+                            AppColors
+                                .textSecondary,
                         tabs: const [
                           Tab(
                             text: 'الأسئلة',
@@ -310,16 +357,17 @@ class _ProfileScreenState
                   ),
                 ];
               },
-              body: TabBarView(
+              body:
+                  TabBarView(
                 controller:
                     _tabController,
-                children: [
-                  _QuestionGrid(
-                    emptyText:
+                children: const [
+                  _ProfileEmptyState(
+                    text:
                         'لا توجد أسئلة بعد',
                   ),
-                  _QuestionGrid(
-                    emptyText:
+                  _ProfileEmptyState(
+                    text:
                         'لا توجد إعجابات بعد',
                   ),
                 ],
@@ -332,7 +380,8 @@ class _ProfileScreenState
   }
 }
 
-class _Stat extends StatelessWidget {
+class _Stat
+    extends StatelessWidget {
   const _Stat({
     required this.value,
     required this.label,
@@ -361,85 +410,30 @@ class _Stat extends StatelessWidget {
   }
 }
 
-class _QuestionGrid
+class _ProfileEmptyState
     extends StatelessWidget {
-  const _QuestionGrid({
-    required this.emptyText,
+  const _ProfileEmptyState({
+    required this.text,
   });
 
-  final String emptyText;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding:
-          const EdgeInsets.all(
-        AppSpacing.x16,
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(
+          AppSpacing.x32,
+        ),
+        child: Text(
+          text,
+          textAlign:
+              TextAlign.center,
+          style:
+              AppTextStyles.bodyMedium,
+        ),
       ),
-      gridDelegate:
-          const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing:
-            AppSpacing.x12,
-        mainAxisSpacing:
-            AppSpacing.x12,
-        childAspectRatio: 0.92,
-      ),
-      itemCount: 6,
-      itemBuilder: (_, index) {
-        return LiquidGlassContainer(
-          borderRadius:
-              AppRadius.shop,
-          padding:
-              const EdgeInsets.all(
-            AppSpacing.x12,
-          ),
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Container(
-                  width:
-                      double.infinity,
-                  decoration:
-                      BoxDecoration(
-                    color: AppColors
-                        .surfaceVariant,
-                    borderRadius:
-                        BorderRadius.circular(
-                      AppRadius.shop,
-                    ),
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.help_outline_rounded,
-                      color:
-                          AppColors.textDisabled,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'سؤال ${index + 1}',
-                style:
-                    AppTextStyles
-                        .bodyMedium,
-                maxLines: 1,
-                overflow:
-                    TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'عام',
-                style:
-                    AppTextStyles.caption,
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }
@@ -473,7 +467,8 @@ class _ProfileTabsDelegate
 
   @override
   bool shouldRebuild(
-    covariant _ProfileTabsDelegate oldDelegate,
+    covariant _ProfileTabsDelegate
+        oldDelegate,
   ) {
     return false;
   }
