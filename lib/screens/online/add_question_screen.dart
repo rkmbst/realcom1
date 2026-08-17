@@ -25,6 +25,9 @@ class AddQuestionScreen extends StatefulWidget {
 
 class _AddQuestionScreenState
     extends State<AddQuestionScreen> {
+  static const int maxHashtags = 5;
+  static const int maxHashtagLength = 24;
+
   final _formKey =
       GlobalKey<FormState>();
 
@@ -40,11 +43,17 @@ class _AddQuestionScreenState
   final _option3Controller =
       TextEditingController();
 
+  final _hashtagController =
+      TextEditingController();
+
   final _session =
       AuthSession.instance;
 
   final _questionStore =
       QuestionStore.instance;
+
+  final List<String> _hashtags =
+      <String>[];
 
   int _selectedCategoryId =
       AppCategories.all.first.id;
@@ -59,11 +68,82 @@ class _AddQuestionScreenState
     _option1Controller.dispose();
     _option2Controller.dispose();
     _option3Controller.dispose();
+    _hashtagController.dispose();
     super.dispose();
   }
 
   String _newId(String prefix) {
     return '$prefix-${DateTime.now().microsecondsSinceEpoch}';
+  }
+
+  String _normalizeHashtag(
+    String value,
+  ) {
+    return value
+        .trim()
+        .replaceFirst('#', '')
+        .toLowerCase();
+  }
+
+  void _addHashtag() {
+    if (_hashtags.length >= maxHashtags) {
+      _showMessage(
+        'يمكنك إضافة 5 هاشتاقات كحد أقصى.',
+      );
+      return;
+    }
+
+    final raw =
+        _hashtagController.text;
+
+    final hashtag =
+        _normalizeHashtag(raw);
+
+    if (hashtag.isEmpty) {
+      return;
+    }
+
+    if (hashtag.length >
+        maxHashtagLength) {
+      _showMessage(
+        'الهاشتاق طويل جدًا.',
+      );
+      return;
+    }
+
+    if (hashtag.contains(' ')) {
+      _showMessage(
+        'الهاشتاق لا يمكن أن يحتوي على مسافات.',
+      );
+      return;
+    }
+
+    if (hashtag.contains('#')) {
+      _showMessage(
+        'اكتب هاشتاقًا واحدًا فقط.',
+      );
+      return;
+    }
+
+    if (_hashtags.contains(hashtag)) {
+      _showMessage(
+        'هذا الهاشتاق مضاف بالفعل.',
+      );
+      return;
+    }
+
+    setState(() {
+      _hashtags.add(hashtag);
+      _hashtagController.clear();
+    });
+  }
+
+  void _removeHashtag(
+    String hashtag,
+  ) {
+    setState(() {
+      _hashtags.remove(hashtag);
+    });
   }
 
   Future<void> _publish() async {
@@ -95,7 +175,8 @@ class _AddQuestionScreenState
       _option3Controller.text.trim(),
     ];
 
-    final options = List<QuestionOption>.generate(
+    final options =
+        List<QuestionOption>.generate(
       optionTexts.length,
       (index) => QuestionOption(
         id: _newId('option'),
@@ -105,7 +186,8 @@ class _AddQuestionScreenState
 
     final question = Question(
       id: _newId('question'),
-      text: _questionController.text.trim(),
+      text:
+          _questionController.text.trim(),
       categoryId: _selectedCategoryId,
       options: options,
       authorName:
@@ -114,6 +196,8 @@ class _AddQuestionScreenState
           _session.currentUser.id,
       correctOptionId:
           options[_correctOptionIndex!].id,
+      hashtags:
+          List.unmodifiable(_hashtags),
     );
 
     _questionStore.add(question);
@@ -172,7 +256,8 @@ class _AddQuestionScreenState
 
   Widget _optionField({
     required String label,
-    required TextEditingController controller,
+    required TextEditingController
+        controller,
   }) {
     return TextFormField(
       controller: controller,
@@ -248,7 +333,8 @@ class _AddQuestionScreenState
                       .radio_button_off_rounded,
               color: selected
                   ? AppColors.primary
-                  : AppColors.textSecondary,
+                  : AppColors
+                      .textSecondary,
               size: 24,
             ),
             const SizedBox(width: 12),
@@ -263,6 +349,137 @@ class _AddQuestionScreenState
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHashtagSection() {
+    return LiquidGlassContainer(
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'الهاشتاقات',
+            style:
+                AppTextStyles.titleMedium,
+          ),
+
+          const SizedBox(
+            height: AppSpacing.x4,
+          ),
+
+          Text(
+            'اختياري — أضف حتى 5 هاشتاقات ليسهل اكتشاف السؤال.',
+            style:
+                AppTextStyles.caption,
+          ),
+
+          const SizedBox(
+            height: AppSpacing.x12,
+          ),
+
+          Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller:
+                      _hashtagController,
+                  maxLength:
+                      maxHashtagLength,
+                  textInputAction:
+                      TextInputAction.done,
+                  onSubmitted: (_) =>
+                      _addHashtag(),
+                  style:
+                      AppTextStyles.bodyMedium,
+                  decoration:
+                      const InputDecoration(
+                    labelText:
+                        'أضف هاشتاق',
+                    hintText:
+                        'مثال: رياضيات',
+                    counterText: '',
+                  ),
+                ),
+              ),
+
+              const SizedBox(
+                width: AppSpacing.x8,
+              ),
+
+              SizedBox(
+                width: 48,
+                height: 48,
+                child:
+                    IconButton(
+                  onPressed:
+                      _addHashtag,
+                  tooltip:
+                      'إضافة هاشتاق',
+                  icon: const Icon(
+                    Icons.add_rounded,
+                  ),
+                  color:
+                      AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+
+          if (_hashtags.isNotEmpty) ...[
+            const SizedBox(
+              height: AppSpacing.x8,
+            ),
+
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children:
+                  _hashtags.map(
+                (hashtag) {
+                  return InputChip(
+                    label: Text(
+                      '#$hashtag',
+                      style:
+                          AppTextStyles
+                              .caption,
+                    ),
+                    onDeleted:
+                        () =>
+                            _removeHashtag(
+                      hashtag,
+                    ),
+                    deleteIcon:
+                        const Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                    ),
+                    backgroundColor:
+                        AppColors
+                            .surfaceVariant,
+                    side: BorderSide(
+                      color: AppColors
+                          .divider
+                          .withOpacity(
+                        0.75,
+                      ),
+                    ),
+                    shape:
+                        RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(
+                        999,
+                      ),
+                    ),
+                  );
+                },
+              ).toList(),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -296,7 +513,8 @@ class _AddQuestionScreenState
           SafeArea(
             child: Form(
               key: _formKey,
-              child: SingleChildScrollView(
+              child:
+                  SingleChildScrollView(
                 padding:
                     const EdgeInsets.all(
                   AppSpacing.x24,
@@ -318,12 +536,10 @@ class _AddQuestionScreenState
                                 AppTextStyles
                                     .titleLarge,
                           ),
-
                           const SizedBox(
                             height:
                                 AppSpacing.x8,
                           ),
-
                           Text(
                             'اكتب سؤالًا واضحًا بثلاث إجابات وحدد الإجابة الصحيحة.',
                             style:
@@ -467,6 +683,13 @@ class _AddQuestionScreenState
                         ],
                       ),
                     ),
+
+                    const SizedBox(
+                      height:
+                          AppSpacing.x16,
+                    ),
+
+                    _buildHashtagSection(),
 
                     const SizedBox(
                       height:
