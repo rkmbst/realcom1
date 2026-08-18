@@ -14,6 +14,7 @@ import '../../models/question.dart';
 import '../../widgets/follow_button.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
+import '../../widgets/notification_bell.dart';
 import '../../widgets/user_avatar.dart';
 import '../online/add_question_screen.dart';
 import '../online/online_question_screen.dart';
@@ -155,6 +156,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(viewedUser.username),
+        actions: [
+          const NotificationBell(),
+        ],
       ),
       body: Stack(
         children: [
