@@ -16,6 +16,7 @@ import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
 import '../../widgets/notification_bell.dart';
 import '../../widgets/user_avatar.dart';
+import '../auth/account_switch_screen.dart';
 import '../online/add_question_screen.dart';
 import '../online/online_question_screen.dart';
 import 'edit_profile_screen.dart';
@@ -157,6 +158,25 @@ class _ProfileScreenState extends State<ProfileScreen>
       appBar: AppBar(
         title: Text(viewedUser.username),
         actions: [
+          if (isOwnProfile)
+            IconButton(
+              tooltip: 'تبديل الحساب',
+              icon: const Icon(
+                Icons.swap_horiz_rounded,
+              ),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AccountSwitchScreen(),
+                  ),
+                );
+
+                if (mounted) {
+                  setState(() {});
+                }
+              },
+            ),
           const NotificationBell(),
         ],
       ),
