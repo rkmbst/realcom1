@@ -1,3 +1,6 @@
+import '../../core/notifications/notification_store.dart';
+import '../../core/social/follow_store.dart';
+import '../../models/notification.dart';
 import '../../models/question.dart';
 
 class QuestionStore {
@@ -6,67 +9,113 @@ class QuestionStore {
   static final QuestionStore instance =
       QuestionStore._();
 
-  final List<Question> _publishedQuestions =
+  final List<Question>
+      _publishedQuestions =
       <Question>[];
 
-  /// All questions currently published
-  /// during this app session.
-  List<Question> get publishedQuestions =>
-      List.unmodifiable(
+  List<Question>
+      get publishedQuestions =>
+          List.unmodifiable(
         _publishedQuestions,
       );
 
-  /// Add a newly published question.
-  void add(Question question) {
-    _publishedQuestions.add(question);
+  void add(
+    Question question,
+  ) {
+    _publishedQuestions.add(
+      question,
+    );
+
+    final authorId =
+        question.authorId;
+
+    final authorName =
+        question.authorName;
+
+    if (authorId == null ||
+        authorName == null) {
+      return;
+    }
+
+    final followerIds =
+        FollowStore.instance
+            .followerIds(
+      authorId,
+    );
+
+    for (final followerId
+        in followerIds) {
+      NotificationStore
+          .instance
+          .add(
+        AppNotification(
+          id:
+              'question-$authorId-${question.id}-$followerId',
+          type:
+              NotificationType
+                  .newQuestion,
+          actorUserId:
+              authorId,
+          actorName:
+              authorName,
+          message:
+              '$authorName نشر سؤالًا جديدًا',
+          targetId:
+              question.id,
+          createdAt:
+              DateTime.now(),
+        ),
+      );
+    }
   }
 
-  /// Get all questions created by one user.
   List<Question> byAuthor(
     String authorId,
   ) {
     return _publishedQuestions
         .where(
           (question) =>
-              question.authorId == authorId,
+              question.authorId ==
+              authorId,
         )
-        .toList(growable: false);
+        .toList(
+          growable: false,
+        );
   }
 
-  /// Count questions created by one user.
   int countByAuthor(
     String authorId,
   ) {
     return _publishedQuestions
         .where(
           (question) =>
-              question.authorId == authorId,
+              question.authorId ==
+              authorId,
         )
         .length;
   }
 
-  /// Get all questions containing
-  /// a specific hashtag.
-  ///
-  /// Hashtags are stored without '#'
-  /// and normalized to lowercase.
   List<Question> byHashtag(
     String hashtag,
   ) {
     final normalized =
-        _normalizeHashtag(hashtag);
+        _normalizeHashtag(
+      hashtag,
+    );
 
     return _publishedQuestions
         .where(
           (question) =>
-              question.hashtags.contains(
+              question.hashtags
+                  .contains(
             normalized,
           ),
         )
-        .toList(growable: false);
+        .toList(
+          growable: false,
+        );
   }
 
-  /// Get all questions in one category.
   List<Question> byCategory(
     int categoryId,
   ) {
@@ -76,7 +125,9 @@ class QuestionStore {
               question.categoryId ==
               categoryId,
         )
-        .toList(growable: false);
+        .toList(
+          growable: false,
+        );
   }
 
   String _normalizeHashtag(
@@ -84,7 +135,10 @@ class QuestionStore {
   ) {
     return value
         .trim()
-        .replaceFirst('#', '')
+        .replaceFirst(
+          '#',
+          '',
+        )
         .toLowerCase();
   }
 }
