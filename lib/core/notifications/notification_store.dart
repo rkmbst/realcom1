@@ -6,18 +6,34 @@ class NotificationStore {
   static final NotificationStore instance =
       NotificationStore._();
 
-  final List<AppNotification> _notifications =
-      <AppNotification>[];
+  final List<AppNotification>
+      _notifications = <AppNotification>[];
 
-  List<AppNotification> get notifications =>
-      List.unmodifiable(
-        _notifications,
-      );
+  List<AppNotification>
+      notificationsForUser(
+    String userId,
+  ) {
+    return List.unmodifiable(
+      _notifications
+          .where(
+            (notification) =>
+                notification
+                    .recipientUserId ==
+                userId,
+          )
+          .toList(),
+    );
+  }
 
-  int get unreadCount {
+  int unreadCountForUser(
+    String userId,
+  ) {
     return _notifications
         .where(
           (notification) =>
+              notification
+                      .recipientUserId ==
+                  userId &&
               !notification.isRead,
         )
         .length;
@@ -52,14 +68,23 @@ class NotificationStore {
     );
   }
 
-  void markAllAsRead() {
+  void markAllAsReadForUser(
+    String userId,
+  ) {
     for (var i = 0;
         i < _notifications.length;
         i++) {
-      _notifications[i] =
-          _notifications[i].copyWith(
-        isRead: true,
-      );
+      final notification =
+          _notifications[i];
+
+      if (notification
+              .recipientUserId ==
+          userId) {
+        _notifications[i] =
+            notification.copyWith(
+          isRead: true,
+        );
+      }
     }
   }
 
@@ -73,18 +98,13 @@ class NotificationStore {
     );
   }
 
-  void clear() {
-    _notifications.clear();
-  }
-
-  List<AppNotification>
-      notificationsForUser(
+  void clearForUser(
     String userId,
   ) {
-    // This is the local-session version.
-    // Later the backend will filter server-side.
-    return List.unmodifiable(
-      _notifications,
+    _notifications.removeWhere(
+      (notification) =>
+          notification.recipientUserId ==
+          userId,
     );
   }
 }
