@@ -12,4 +12,16 @@ class Publisher {
     required this.handle,
     required this.accentColor,
   });
+
+  factory Publisher.fromUser(
+    dynamic user, {
+    Color? accentColor,
+  }) {
+    return Publisher(
+      id: user.id as String,
+      name: user.displayName as String,
+      handle: user.username as String,
+      accentColor: accentColor ?? const Color(0xFF6750A4),
+    );
+  }
 }
