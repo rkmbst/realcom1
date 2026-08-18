@@ -15,29 +15,65 @@ class FollowStore {
   final List<Follow> _follows =
       <Follow>[];
 
-  bool isFollowing(String userId) {
-    return _followingIds.contains(userId);
+  bool isFollowing(
+    String userId,
+  ) {
+    return _followingIds.contains(
+      userId,
+    );
   }
 
-  int followerCount(String userId) {
+  int followerCount(
+    String userId,
+  ) {
     return _follows
         .where(
           (follow) =>
-              follow.followingId == userId,
+              follow.followingId ==
+              userId,
         )
         .length;
   }
 
-  int followingCount(String userId) {
+  int followingCount(
+    String userId,
+  ) {
     return _follows
         .where(
           (follow) =>
-              follow.followerId == userId,
+              follow.followerId ==
+              userId,
         )
         .length;
   }
 
-  bool toggleFollow(String userId) {
+  List<String> followerIds(
+    String userId,
+  ) {
+    return _follows
+        .where(
+          (follow) =>
+              follow.followingId ==
+              userId,
+        )
+        .map(
+          (follow) =>
+              follow.followerId,
+        )
+        .toList(
+          growable: false,
+        );
+  }
+
+  List<String> followingIds() {
+    return List.unmodifiable(
+      _followingIds,
+    );
+  }
+
+  bool toggleFollow(
+    String userId,
+  ) {
     final currentUser =
         AuthSession.instance.currentUser;
 
@@ -46,10 +82,14 @@ class FollowStore {
     }
 
     final alreadyFollowing =
-        _followingIds.contains(userId);
+        _followingIds.contains(
+      userId,
+    );
 
     if (alreadyFollowing) {
-      _followingIds.remove(userId);
+      _followingIds.remove(
+        userId,
+      );
 
       _follows.removeWhere(
         (follow) =>
@@ -62,22 +102,25 @@ class FollowStore {
       return false;
     }
 
-    _followingIds.add(userId);
+    _followingIds.add(
+      userId,
+    );
 
     _follows.add(
       Follow(
-        followerId: currentUser.id,
-        followingId: userId,
-        createdAt: DateTime.now(),
+        followerId:
+            currentUser.id,
+        followingId:
+            userId,
+        createdAt:
+            DateTime.now(),
       ),
     );
 
-    // Create a notification for the
-    // user being followed.
     NotificationStore.instance.add(
       AppNotification(
         id:
-            'follow-${currentUser.id}-${userId}-${DateTime.now().microsecondsSinceEpoch}',
+            'follow-${currentUser.id}-$userId-${DateTime.now().microsecondsSinceEpoch}',
         type:
             NotificationType.follow,
         actorUserId:
@@ -86,18 +129,13 @@ class FollowStore {
             currentUser.displayName,
         message:
             '${currentUser.displayName} بدأ بمتابعتك',
-        targetId: userId,
+        targetId:
+            userId,
         createdAt:
             DateTime.now(),
       ),
     );
 
     return true;
-  }
-
-  List<String> followingIds() {
-    return List.unmodifiable(
-      _followingIds,
-    );
   }
 }
