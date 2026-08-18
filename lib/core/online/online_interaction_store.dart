@@ -8,28 +8,40 @@ class OnlineInteractionStore {
   static final OnlineInteractionStore instance =
       OnlineInteractionStore._();
 
-  final Map<String, bool> _likedQuestions =
-      <String, bool>{};
+  final Map<String, Set<String>>
+      _likedQuestionsByUser =
+      <String, Set<String>>{};
 
-  final Map<String, List<String>> _comments =
+  final Map<String, List<String>>
+      _comments =
       <String, List<String>>{};
 
   bool isLiked(
     String questionId,
   ) {
-    return _likedQuestions[
-            questionId] ??
+    final userId =
+        AuthSession.instance
+            .currentUser.id;
+
+    return _likedQuestionsByUser[
+              userId]
+          ?.contains(
+        questionId,
+      ) ??
         false;
   }
 
   int likeCount(
     String questionId,
   ) {
-    return _likedQuestions[
-                questionId] ==
-            true
-        ? 1
-        : 0;
+    return _likedQuestionsByUser.values
+        .where(
+          (questions) =>
+              questions.contains(
+            questionId,
+          ),
+        )
+        .length;
   }
 
   bool toggleLike(
@@ -37,47 +49,52 @@ class OnlineInteractionStore {
     String? authorId,
     String? authorName,
   }) {
-    final current =
-        isLiked(questionId);
+    final currentUser =
+        AuthSession.instance.currentUser;
 
-    final next = !current;
+    final likes =
+        _likedQuestionsByUser[
+                currentUser.id] ??=
+            <String>{};
 
-    _likedQuestions[
-        questionId] = next;
+    final alreadyLiked =
+        likes.contains(
+      questionId,
+    );
 
-    if (next &&
-        authorId != null &&
-        authorName != null) {
-      final currentUser =
-          AuthSession.instance
-              .currentUser;
-
-      if (currentUser.id !=
-          authorId) {
-        NotificationStore
-            .instance
-            .add(
-          AppNotification(
-            id:
-                'like-${currentUser.id}-$questionId-${DateTime.now().microsecondsSinceEpoch}',
-            type:
-                NotificationType.like,
-            actorUserId:
-                currentUser.id,
-            actorName:
-                currentUser.displayName,
-            message:
-                '${currentUser.displayName} أعجب بسؤالك',
-            targetId:
-                questionId,
-            createdAt:
-                DateTime.now(),
-          ),
-        );
-      }
+    if (alreadyLiked) {
+      likes.remove(questionId);
+      return false;
     }
 
-    return next;
+    likes.add(questionId);
+
+    if (authorId != null &&
+        authorName != null &&
+        currentUser.id != authorId) {
+      NotificationStore.instance.add(
+        AppNotification(
+          id:
+              'like-${currentUser.id}-$questionId-${DateTime.now().microsecondsSinceEpoch}',
+          type:
+              NotificationType.like,
+          recipientUserId:
+              authorId,
+          actorUserId:
+              currentUser.id,
+          actorName:
+              currentUser.displayName,
+          message:
+              '${currentUser.displayName} أعجب بسؤالك',
+          targetId:
+              questionId,
+          createdAt:
+              DateTime.now(),
+        ),
+      );
+    }
+
+    return true;
   }
 
   List<String> comments(
@@ -102,41 +119,36 @@ class OnlineInteractionStore {
       return;
     }
 
-    (_comments[
-                questionId] ??=
+    (_comments[questionId] ??=
             <String>[])
         .add(text);
 
-    if (authorId != null &&
-        authorName != null) {
-      final currentUser =
-          AuthSession.instance
-              .currentUser;
+    final currentUser =
+        AuthSession.instance.currentUser;
 
-      if (currentUser.id !=
-          authorId) {
-        NotificationStore
-            .instance
-            .add(
-          AppNotification(
-            id:
-                'comment-${currentUser.id}-$questionId-${DateTime.now().microsecondsSinceEpoch}',
-            type:
-                NotificationType
-                    .comment,
-            actorUserId:
-                currentUser.id,
-            actorName:
-                currentUser.displayName,
-            message:
-                '${currentUser.displayName} علّق على سؤالك',
-            targetId:
-                questionId,
-            createdAt:
-                DateTime.now(),
-          ),
-        );
-      }
+    if (authorId != null &&
+        authorName != null &&
+        currentUser.id != authorId) {
+      NotificationStore.instance.add(
+        AppNotification(
+          id:
+              'comment-${currentUser.id}-$questionId-${DateTime.now().microsecondsSinceEpoch}',
+          type:
+              NotificationType.comment,
+          recipientUserId:
+              authorId,
+          actorUserId:
+              currentUser.id,
+          actorName:
+              currentUser.displayName,
+          message:
+              '${currentUser.displayName} علّق على سؤالك',
+          targetId:
+              questionId,
+          createdAt:
+              DateTime.now(),
+        ),
+      );
     }
   }
 
