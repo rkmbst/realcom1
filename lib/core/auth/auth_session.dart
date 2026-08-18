@@ -6,20 +6,10 @@ class AuthSession {
   static final AuthSession instance =
       AuthSession._();
 
-  late final Map<String, AppUser>
-      _users = <String, AppUser>{
-    'user_1': const AppUser(
-      id: 'user_1',
-      username: 'welibre_user',
-      displayName: 'WeLibre User',
-      bio: 'أحب الأسئلة والأفكار الجميلة.',
-      followersCount: 0,
-      followingCount: 0,
-      questionCount: 0,
-    ),
-
-    'user_2': const AppUser(
-      id: 'user_2',
+  final Map<String, AppUser> _users =
+      <String, AppUser>{
+    'publisher_1': const AppUser(
+      id: 'publisher_1',
       username: 'mindspace',
       displayName: 'Mind Space',
       bio: 'أسئلة وأفكار تستحق التفكير.',
@@ -28,8 +18,8 @@ class AuthSession {
       questionCount: 18,
     ),
 
-    'user_3': const AppUser(
-      id: 'user_3',
+    'publisher_2': const AppUser(
+      id: 'publisher_2',
       username: 'dailyfacts',
       displayName: 'Daily Facts',
       bio: 'معلومات وأسئلة عامة كل يوم.',
@@ -37,9 +27,20 @@ class AuthSession {
       followingCount: 31,
       questionCount: 27,
     ),
+
+    'publisher_3': const AppUser(
+      id: 'publisher_3',
+      username: 'honest_opinion',
+      displayName: 'رأي صريح',
+      bio: 'آراء وأسئلة تستحق النقاش.',
+      followersCount: 74,
+      followingCount: 25,
+      questionCount: 14,
+    ),
   };
 
-  String? _currentUserId = 'user_1';
+  String? _currentUserId =
+      'publisher_1';
 
   bool get isAuthenticated =>
       _currentUserId != null;
@@ -102,8 +103,7 @@ class AuthSession {
     required String bio,
     String? avatarUrl,
   }) {
-    final current =
-        currentUser;
+    final current = currentUser;
 
     _users[current.id] =
         current.copyWith(
@@ -118,8 +118,7 @@ class AuthSession {
   void setFollowingCount(
     int value,
   ) {
-    final current =
-        currentUser;
+    final current = currentUser;
 
     _users[current.id] =
         current.copyWith(
@@ -131,8 +130,7 @@ class AuthSession {
   void setFollowersCount(
     int value,
   ) {
-    final current =
-        currentUser;
+    final current = currentUser;
 
     _users[current.id] =
         current.copyWith(
@@ -144,8 +142,7 @@ class AuthSession {
   void setQuestionCount(
     int value,
   ) {
-    final current =
-        currentUser;
+    final current = currentUser;
 
     _users[current.id] =
         current.copyWith(
