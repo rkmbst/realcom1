@@ -54,6 +54,8 @@ class QuestionStore {
           type:
               NotificationType
                   .newQuestion,
+          recipientUserId:
+              followerId,
           actorUserId:
               authorId,
           actorName:
