@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
+
 import '../../models/app_user.dart';
 
-class AuthSession {
+class AuthSession extends ChangeNotifier {
   AuthSession._();
 
   static final AuthSession instance =
@@ -17,7 +19,6 @@ class AuthSession {
       followingCount: 42,
       questionCount: 18,
     ),
-
     'publisher_2': const AppUser(
       id: 'publisher_2',
       username: 'dailyfacts',
@@ -27,7 +28,6 @@ class AuthSession {
       followingCount: 31,
       questionCount: 27,
     ),
-
     'publisher_3': const AppUser(
       id: 'publisher_3',
       username: 'honest_opinion',
@@ -39,8 +39,7 @@ class AuthSession {
     ),
   };
 
-  String? _currentUserId =
-      'publisher_1';
+  String? _currentUserId = 'publisher_1';
 
   bool get isAuthenticated =>
       _currentUserId != null;
@@ -65,9 +64,7 @@ class AuthSession {
     return user;
   }
 
-  AppUser? findUser(
-    String userId,
-  ) {
+  AppUser? findUser(String userId) {
     return _users[userId];
   }
 
@@ -76,25 +73,28 @@ class AuthSession {
         _users.values,
       );
 
-  void addUser(
-    AppUser user,
-  ) {
+  void addUser(AppUser user) {
     _users[user.id] = user;
+    notifyListeners();
   }
 
-  bool login(
-    String userId,
-  ) {
+  bool login(String userId) {
     if (!_users.containsKey(userId)) {
       return false;
     }
 
     _currentUserId = userId;
+    notifyListeners();
     return true;
   }
 
   void logout() {
+    if (_currentUserId == null) {
+      return;
+    }
+
     _currentUserId = null;
+    notifyListeners();
   }
 
   void updateProfile({
@@ -105,19 +105,17 @@ class AuthSession {
   }) {
     final current = currentUser;
 
-    _users[current.id] =
-        current.copyWith(
+    _users[current.id] = current.copyWith(
       username: username.trim(),
-      displayName:
-          displayName.trim(),
+      displayName: displayName.trim(),
       bio: bio.trim(),
       avatarUrl: avatarUrl,
     );
+
+    notifyListeners();
   }
 
-  void setFollowingCount(
-    int value,
-  ) {
+  void setFollowingCount(int value) {
     final current = currentUser;
 
     _users[current.id] =
@@ -125,11 +123,11 @@ class AuthSession {
       followingCount:
           value < 0 ? 0 : value,
     );
+
+    notifyListeners();
   }
 
-  void setFollowersCount(
-    int value,
-  ) {
+  void setFollowersCount(int value) {
     final current = currentUser;
 
     _users[current.id] =
@@ -137,11 +135,11 @@ class AuthSession {
       followersCount:
           value < 0 ? 0 : value,
     );
+
+    notifyListeners();
   }
 
-  void setQuestionCount(
-    int value,
-  ) {
+  void setQuestionCount(int value) {
     final current = currentUser;
 
     _users[current.id] =
@@ -149,5 +147,7 @@ class AuthSession {
       questionCount:
           value < 0 ? 0 : value,
     );
+
+    notifyListeners();
   }
 }
