@@ -9,6 +9,7 @@ class AppNotification {
   const AppNotification({
     required this.id,
     required this.type,
+    required this.recipientUserId,
     required this.actorUserId,
     required this.actorName,
     required this.message,
@@ -21,17 +22,17 @@ class AppNotification {
 
   final NotificationType type;
 
-  /// The user who caused the notification.
+  /// The user who receives this notification.
+  final String recipientUserId;
+
+  /// The user who caused this notification.
   final String actorUserId;
 
-  /// Display name of the actor.
   final String actorName;
 
-  /// Short human-readable notification text.
   final String message;
 
-  /// Optional target:
-  /// question id, profile id, etc.
+  /// Question/profile/other target.
   final String? targetId;
 
   final DateTime createdAt;
@@ -44,12 +45,20 @@ class AppNotification {
     return AppNotification(
       id: id,
       type: type,
-      actorUserId: actorUserId,
-      actorName: actorName,
-      message: message,
-      targetId: targetId,
-      createdAt: createdAt,
-      isRead: isRead ?? this.isRead,
+      recipientUserId:
+          recipientUserId,
+      actorUserId:
+          actorUserId,
+      actorName:
+          actorName,
+      message:
+          message,
+      targetId:
+          targetId,
+      createdAt:
+          createdAt,
+      isRead:
+          isRead ?? this.isRead,
     );
   }
 }
