@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/auth/auth_session.dart';
 import '../core/notifications/notification_store.dart';
 import '../core/theme/app_colors.dart';
 import '../screens/notifications/notifications_screen.dart';
@@ -20,12 +21,17 @@ class _NotificationBellState
   final _store =
       NotificationStore.instance;
 
+  final _session =
+      AuthSession.instance;
+
   @override
   Widget build(
     BuildContext context,
   ) {
     final unread =
-        _store.unreadCount;
+        _store.unreadCountForUser(
+      _session.currentUser.id,
+    );
 
     return IconButton(
       tooltip:
@@ -52,7 +58,6 @@ class _NotificationBellState
                 .notifications_outlined,
             size: 24,
           ),
-
           if (unread > 0)
             Positioned(
               right: -2,
@@ -78,8 +83,8 @@ class _NotificationBellState
                   ),
                   border:
                       Border.all(
-                    color: AppColors
-                        .background,
+                    color:
+                        AppColors.background,
                     width: 2,
                   ),
                 ),
