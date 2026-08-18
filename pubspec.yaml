@@ -19,3 +19,5 @@ flutter:
 
   assets:
     - assets/images/aurora_titanium_wheel.png
+
+shared_preferences: ^2.5.3
