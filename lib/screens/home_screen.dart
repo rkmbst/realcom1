@@ -6,7 +6,7 @@ import '../widgets/glass_button.dart';
 import '../widgets/liquid_background.dart';
 import '../widgets/liquid_glass_container.dart';
 import 'local/local_players_screen.dart';
-import 'online/online_feed_screen.dart';
+import 'online/online_app_shell.dart';
 import 'profile/profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -55,7 +55,7 @@ class HomeScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const OnlineFeedScreen(),
+                            builder: (_) => const OnlineAppShell(),
                           ),
                         );
                       },
