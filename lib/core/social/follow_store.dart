@@ -1,5 +1,7 @@
 import '../../core/auth/auth_session.dart';
+import '../../core/notifications/notification_store.dart';
 import '../../models/follow.dart';
+import '../../models/notification.dart';
 
 class FollowStore {
   FollowStore._();
@@ -7,8 +9,11 @@ class FollowStore {
   static final FollowStore instance =
       FollowStore._();
 
-  final Set<String> _followingIds = <String>{};
-  final List<Follow> _follows = <Follow>[];
+  final Set<String> _followingIds =
+      <String>{};
+
+  final List<Follow> _follows =
+      <Follow>[];
 
   bool isFollowing(String userId) {
     return _followingIds.contains(userId);
@@ -16,33 +21,40 @@ class FollowStore {
 
   int followerCount(String userId) {
     return _follows
-        .where((follow) =>
-            follow.followingId == userId)
+        .where(
+          (follow) =>
+              follow.followingId == userId,
+        )
         .length;
   }
 
   int followingCount(String userId) {
     return _follows
-        .where((follow) =>
-            follow.followerId == userId)
+        .where(
+          (follow) =>
+              follow.followerId == userId,
+        )
         .length;
   }
 
   bool toggleFollow(String userId) {
-    final currentUserId =
-        AuthSession.instance.currentUser.id;
+    final currentUser =
+        AuthSession.instance.currentUser;
 
-    if (currentUserId == userId) {
+    if (currentUser.id == userId) {
       return false;
     }
 
-    if (_followingIds.contains(userId)) {
+    final alreadyFollowing =
+        _followingIds.contains(userId);
+
+    if (alreadyFollowing) {
       _followingIds.remove(userId);
 
       _follows.removeWhere(
         (follow) =>
             follow.followerId ==
-                currentUserId &&
+                currentUser.id &&
             follow.followingId ==
                 userId,
       );
@@ -54,9 +66,29 @@ class FollowStore {
 
     _follows.add(
       Follow(
-        followerId: currentUserId,
+        followerId: currentUser.id,
         followingId: userId,
         createdAt: DateTime.now(),
+      ),
+    );
+
+    // Create a notification for the
+    // user being followed.
+    NotificationStore.instance.add(
+      AppNotification(
+        id:
+            'follow-${currentUser.id}-${userId}-${DateTime.now().microsecondsSinceEpoch}',
+        type:
+            NotificationType.follow,
+        actorUserId:
+            currentUser.id,
+        actorName:
+            currentUser.displayName,
+        message:
+            '${currentUser.displayName} بدأ بمتابعتك',
+        targetId: userId,
+        createdAt:
+            DateTime.now(),
       ),
     );
 
