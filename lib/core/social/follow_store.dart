@@ -19,7 +19,7 @@ class FollowStore {
     String userId,
   ) {
     return _followingIds.contains(
-      userId,
+      '${AuthSession.instance.currentUser.id}:$userId',
     );
   }
 
@@ -38,11 +38,14 @@ class FollowStore {
   int followingCount(
     String userId,
   ) {
+    final currentUserId =
+        AuthSession.instance.currentUser.id;
+
     return _follows
         .where(
           (follow) =>
               follow.followerId ==
-              userId,
+              currentUserId,
         )
         .length;
   }
@@ -66,9 +69,22 @@ class FollowStore {
   }
 
   List<String> followingIds() {
-    return List.unmodifiable(
-      _followingIds,
-    );
+    final currentUserId =
+        AuthSession.instance.currentUser.id;
+
+    return _follows
+        .where(
+          (follow) =>
+              follow.followerId ==
+              currentUserId,
+        )
+        .map(
+          (follow) =>
+              follow.followingId,
+        )
+        .toList(
+          growable: false,
+        );
   }
 
   bool toggleFollow(
@@ -81,15 +97,14 @@ class FollowStore {
       return false;
     }
 
+    final key =
+        '${currentUser.id}:$userId';
+
     final alreadyFollowing =
-        _followingIds.contains(
-      userId,
-    );
+        _followingIds.contains(key);
 
     if (alreadyFollowing) {
-      _followingIds.remove(
-        userId,
-      );
+      _followingIds.remove(key);
 
       _follows.removeWhere(
         (follow) =>
@@ -102,9 +117,7 @@ class FollowStore {
       return false;
     }
 
-    _followingIds.add(
-      userId,
-    );
+    _followingIds.add(key);
 
     _follows.add(
       Follow(
@@ -123,6 +136,8 @@ class FollowStore {
             'follow-${currentUser.id}-$userId-${DateTime.now().microsecondsSinceEpoch}',
         type:
             NotificationType.follow,
+        recipientUserId:
+            userId,
         actorUserId:
             currentUser.id,
         actorName:
