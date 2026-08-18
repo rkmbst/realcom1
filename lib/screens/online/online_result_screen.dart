@@ -78,6 +78,8 @@ class _OnlineResultScreenState extends State<OnlineResultScreen> {
   void _toggleLike() {
     final liked = _interactions.toggleLike(
       widget.question.id,
+      authorId: widget.question.authorId,
+      authorName: widget.question.authorName,
     );
 
     Haptics.light();
@@ -98,6 +100,8 @@ class _OnlineResultScreenState extends State<OnlineResultScreen> {
     _interactions.addComment(
       widget.question.id,
       text,
+      authorId: widget.question.authorId,
+      authorName: widget.question.authorName,
     );
 
     _commentController.clear();
