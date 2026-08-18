@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/app_user.dart';
+import 'auth_session.dart';
 
 class UserDirectory {
   UserDirectory._();
@@ -8,54 +9,50 @@ class UserDirectory {
   static final UserDirectory instance =
       UserDirectory._();
 
-  final Map<String, AppUser> _users = {
-    'publisher_1': AppUser(
-      id: 'publisher_1',
-      username: 'mindspace',
-      displayName: 'Mind Space',
-      bio: 'أسئلة وأفكار تستحق التفكير.',
-      followersCount: 128,
-      followingCount: 42,
-      questionCount: 18,
-    ),
-    'publisher_2': AppUser(
-      id: 'publisher_2',
-      username: 'dailyfacts',
-      displayName: 'Daily Facts',
-      bio: 'معلومات وأسئلة عامة كل يوم.',
-      followersCount: 286,
-      followingCount: 31,
-      questionCount: 27,
-    ),
-  };
+  final AuthSession _session =
+      AuthSession.instance;
 
+  /// Find a user from the single source of truth.
   AppUser? find(String userId) {
-    return _users[userId];
+    return _session.findUser(userId);
   }
 
+  /// Return all registered local users.
+  List<AppUser> get users {
+    return _session.users;
+  }
+
+  /// Convert a Publisher into a real AppUser.
+  ///
+  /// If the user already exists, return the
+  /// existing instance instead of creating
+  /// a duplicate record.
   AppUser fromPublisher({
     required String id,
     required String name,
     required String handle,
     Color? accentColor,
   }) {
-    final existing = _users[id];
+    final existing = _session.findUser(id);
 
     if (existing != null) {
       return existing;
     }
 
+    final username =
+        handle.trim().replaceFirst('@', '');
+
     final user = AppUser(
       id: id,
-      username: handle.replaceFirst('@', ''),
-      displayName: name,
+      username: username,
+      displayName: name.trim(),
       bio: '',
       followersCount: 0,
       followingCount: 0,
       questionCount: 0,
     );
 
-    _users[id] = user;
+    _session.addUser(user);
 
     return user;
   }
