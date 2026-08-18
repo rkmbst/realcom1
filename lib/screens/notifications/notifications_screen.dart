@@ -1,0 +1,388 @@
+import 'package:flutter/material.dart';
+
+import '../../core/notifications/notification_store.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../models/notification.dart';
+import '../../widgets/liquid_background.dart';
+import '../../widgets/liquid_glass_container.dart';
+import '../profile/profile_screen.dart';
+
+class NotificationsScreen
+    extends StatefulWidget {
+  const NotificationsScreen({
+    super.key,
+  });
+
+  @override
+  State<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
+}
+
+class _NotificationsScreenState
+    extends State<NotificationsScreen> {
+  final _store =
+      NotificationStore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  void _markAllAsRead() {
+    _store.markAllAsRead();
+
+    setState(() {});
+  }
+
+  void _openNotification(
+    AppNotification notification,
+  ) {
+    _store.markAsRead(
+      notification.id,
+    );
+
+    setState(() {});
+
+    switch (notification.type) {
+      case NotificationType.follow:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProfileScreen(
+              userId:
+                  notification.actorUserId,
+            ),
+          ),
+        );
+        break;
+
+      case NotificationType.like:
+      case NotificationType.comment:
+      case NotificationType.newQuestion:
+        // The target screen will be connected
+        // when the question-detail route exists.
+        break;
+    }
+  }
+
+  String _timeLabel(
+    DateTime time,
+  ) {
+    final difference =
+        DateTime.now().difference(time);
+
+    if (difference.inSeconds < 60) {
+      return 'الآن';
+    }
+
+    if (difference.inMinutes < 60) {
+      return 'منذ ${difference.inMinutes} د';
+    }
+
+    if (difference.inHours < 24) {
+      return 'منذ ${difference.inHours} س';
+    }
+
+    if (difference.inDays < 7) {
+      return 'منذ ${difference.inDays} ي';
+    }
+
+    return 'منذ أكثر من أسبوع';
+  }
+
+  IconData _iconFor(
+    NotificationType type,
+  ) {
+    switch (type) {
+      case NotificationType.follow:
+        return Icons.person_add_alt_1_rounded;
+
+      case NotificationType.like:
+        return Icons.favorite_rounded;
+
+      case NotificationType.comment:
+        return Icons.chat_bubble_outline_rounded;
+
+      case NotificationType.newQuestion:
+        return Icons.help_outline_rounded;
+    }
+  }
+
+  Color _iconColorFor(
+    NotificationType type,
+  ) {
+    switch (type) {
+      case NotificationType.follow:
+        return AppColors.secondary;
+
+      case NotificationType.like:
+        return AppColors.like;
+
+      case NotificationType.comment:
+        return AppColors.textPrimary;
+
+      case NotificationType.newQuestion:
+        return AppColors.success;
+    }
+  }
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final notifications =
+        _store.notifications;
+
+    return Scaffold(
+      backgroundColor:
+          AppColors.background,
+
+      appBar: AppBar(
+        title:
+            const Text('الإشعارات'),
+        actions: [
+          if (_store.unreadCount > 0)
+            TextButton(
+              onPressed:
+                  _markAllAsRead,
+              child:
+                  const Text('قراءة الكل'),
+            ),
+        ],
+      ),
+
+      body: Stack(
+        children: [
+          const LiquidBackground(),
+
+          SafeArea(
+            child:
+                notifications.isEmpty
+                    ? const _EmptyNotifications()
+                    : ListView.separated(
+                        padding:
+                            const EdgeInsets.fromLTRB(
+                          AppSpacing.x16,
+                          AppSpacing.x12,
+                          AppSpacing.x16,
+                          AppSpacing.x24,
+                        ),
+                        itemCount:
+                            notifications.length,
+                        separatorBuilder:
+                            (_, __) =>
+                                const SizedBox(
+                          height:
+                              AppSpacing.x8,
+                        ),
+                        itemBuilder:
+                            (context, index) {
+                          final notification =
+                              notifications[
+                                  index];
+
+                          return _NotificationTile(
+                            notification:
+                                notification,
+                            icon:
+                                _iconFor(
+                              notification
+                                  .type,
+                            ),
+                            iconColor:
+                                _iconColorFor(
+                              notification
+                                  .type,
+                            ),
+                            timeLabel:
+                                _timeLabel(
+                              notification
+                                  .createdAt,
+                            ),
+                            onTap:
+                                () =>
+                                    _openNotification(
+                              notification,
+                            ),
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NotificationTile
+    extends StatelessWidget {
+  const _NotificationTile({
+    required this.notification,
+    required this.icon,
+    required this.iconColor,
+    required this.timeLabel,
+    required this.onTap,
+  });
+
+  final AppNotification notification;
+  final IconData icon;
+  final Color iconColor;
+  final String timeLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final isUnread =
+        !notification.isRead;
+
+    return InkWell(
+      borderRadius:
+          BorderRadius.circular(18),
+      onTap: onTap,
+      child:
+          LiquidGlassContainer(
+        opacity:
+            isUnread ? 0.09 : 0.045,
+        padding:
+            const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        child: Row(
+          crossAxisAlignment:
+              CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration:
+                  BoxDecoration(
+                shape:
+                    BoxShape.circle,
+                color:
+                    iconColor.withOpacity(
+                  0.12,
+                ),
+              ),
+              child: Icon(
+                icon,
+                size: 22,
+                color: iconColor,
+              ),
+            ),
+
+            const SizedBox(
+              width: 12,
+            ),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment
+                        .start,
+                children: [
+                  Text(
+                    notification.message,
+                    style:
+                        AppTextStyles
+                            .bodyMedium
+                            .copyWith(
+                      fontWeight:
+                          isUnread
+                              ? FontWeight
+                                  .w600
+                              : FontWeight
+                                  .w400,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 4,
+                  ),
+
+                  Text(
+                    timeLabel,
+                    style:
+                        AppTextStyles
+                            .caption,
+                  ),
+                ],
+              ),
+            ),
+
+            if (isUnread)
+              Container(
+                width: 8,
+                height: 8,
+                decoration:
+                    const BoxDecoration(
+                  shape:
+                      BoxShape.circle,
+                  color:
+                      AppColors.secondary,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyNotifications
+    extends StatelessWidget {
+  const _EmptyNotifications();
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(
+          AppSpacing.x32,
+        ),
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          children: [
+            Icon(
+              Icons
+                  .notifications_none_rounded,
+              size: 48,
+              color:
+                  AppColors.textSecondary,
+            ),
+            const SizedBox(
+              height: 16,
+            ),
+            Text(
+              'لا توجد إشعارات بعد',
+              style:
+                  AppTextStyles
+                      .titleMedium,
+              textAlign:
+                  TextAlign.center,
+            ),
+            const SizedBox(
+              height: 8,
+            ),
+            Text(
+              'ستظهر هنا المتابعات والإعجابات والتعليقات والتحديثات الجديدة.',
+              style:
+                  AppTextStyles
+                      .bodyMedium,
+              textAlign:
+                  TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
