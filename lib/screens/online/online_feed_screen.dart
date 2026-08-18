@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/auth_session.dart';
+import '../../core/online/feed_interaction_store.dart';
 import '../../core/online/question_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/categories.dart';
 import '../../data/mock_online_data.dart';
 import '../../models/feed_card.dart';
-import '../../models/publisher.dart';
 import '../../models/question.dart';
-import '../../models/question_pack.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
 import '../../widgets/swipeable_card.dart';
 import '../profile/profile_screen.dart';
+import 'online_question_screen.dart';
 import 'publisher_wheel_screen.dart';
 
-class OnlineFeedScreen extends StatefulWidget {
+class OnlineFeedScreen
+    extends StatefulWidget {
   const OnlineFeedScreen({
     super.key,
   });
@@ -34,15 +35,30 @@ class _OnlineFeedScreenState
   final _session =
       AuthSession.instance;
 
+  final _interactions =
+      FeedInteractionStore.instance;
+
   late List<FeedCard> _cards;
 
+  late final PageController
+      _pageController;
+
   int _currentIndex = 0;
-  int _cardNonce = 0;
 
   @override
   void initState() {
     super.initState();
+
+    _pageController =
+        PageController();
+
     _rebuildFeed();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   void _rebuildFeed() {
@@ -62,21 +78,24 @@ class _OnlineFeedScreenState
       return;
     }
 
-    if (_currentIndex >= _cards.length) {
-      _currentIndex = 0;
+    if (_currentIndex >=
+        _cards.length) {
+      _currentIndex =
+          _cards.length - 1;
     }
   }
 
-  List<FeedCard> _buildUserQuestionCards() {
+  List<FeedCard>
+      _buildUserQuestionCards() {
     final questions =
-        _questionStore.publishedQuestions;
+        _questionStore
+            .publishedQuestions;
 
-    final cards = <FeedCard>[];
+    final cards =
+        <FeedCard>[];
 
-    final currentUser =
-        _session.currentUser;
-
-    for (final question in questions) {
+    for (final question
+        in questions) {
       final authorId =
           question.authorId;
 
@@ -84,40 +103,37 @@ class _OnlineFeedScreenState
         continue;
       }
 
-      final authorName =
-          question.authorName ??
-              currentUser.displayName;
+      final author =
+          _session.findUser(
+        authorId,
+      );
 
-      final handle =
-          '@${currentUser.username}';
+      if (author == null) {
+        continue;
+      }
 
       final publisher =
-          Publisher(
-        id: authorId,
-        name: authorName,
-        handle: handle,
-        accentColor:
-            AppCategories.byId(
-          question.categoryId,
-        ).color,
+          MockOnlineData.publisherFromUser(
+        author,
+        question.categoryId,
       );
 
       final pack =
-          QuestionPack(
-        id: 'user_pack_$authorId',
-        publisherId: authorId,
-        title: 'أسئلة $authorName',
-        questions: [
-          question,
-        ],
+          MockOnlineData.packFromQuestion(
+        publisher,
+        question,
       );
 
       cards.add(
         FeedCard(
-          id: 'user_card_${question.id}',
-          publisher: publisher,
-          pack: pack,
-          question: question,
+          id:
+              'user_card_${question.id}',
+          publisher:
+              publisher,
+          pack:
+              pack,
+          question:
+              question,
         ),
       );
     }
@@ -125,36 +141,91 @@ class _OnlineFeedScreenState
     return cards;
   }
 
-  void _refreshFeed() {
-    setState(() {
-      _rebuildFeed();
-      _cardNonce++;
-    });
-  }
-
-  void _skip() {
+  void _nextPage() {
     if (_cards.isEmpty) {
       return;
     }
 
+    if (_currentIndex >=
+        _cards.length - 1) {
+      return;
+    }
+
+    _pageController.nextPage(
+      duration:
+          const Duration(
+        milliseconds: 220,
+      ),
+      curve:
+          Curves.easeOutCubic,
+    );
+  }
+
+  void _markInterested(
+    FeedCard card,
+  ) {
+    _interactions.markInterested(
+      card.id,
+    );
+
+    _nextPage();
+  }
+
+  void _markNotInterested(
+    FeedCard card,
+  ) {
+    _interactions.markNotInterested(
+      card.id,
+    );
+
+    _nextPage();
+  }
+
+  void _toggleSave(
+    FeedCard card,
+  ) {
     setState(() {
-      _currentIndex =
-          (_currentIndex + 1) %
-              _cards.length;
-      _cardNonce++;
+      _interactions.toggleSave(
+        card.id,
+      );
     });
   }
 
-  Future<void> _openPublisherWheel(
+  Future<void> _openQuestion(
     FeedCard card,
   ) async {
-    final shuffled =
-        List<Question>.from(
-          card.pack.questions,
-        )..shuffle();
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            OnlineQuestionScreen(
+          question:
+              card.question,
+          publisher:
+              card.publisher,
+          isLastQuestion: true,
+        ),
+      ),
+    );
 
-    final wheelQuestions =
-        shuffled.take(7).toList();
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void>
+      _openPublisherWheel(
+    FeedCard card,
+  ) async {
+    final questions =
+        List<Question>.from(
+      card.pack.questions,
+    )..shuffle();
+
+    final selected =
+        questions
+            .take(7)
+            .toList();
 
     await Navigator.push(
       context,
@@ -163,16 +234,13 @@ class _OnlineFeedScreenState
             PublisherWheelScreen(
           publisher:
               card.publisher,
-          pack: card.pack,
+          pack:
+              card.pack,
           questions:
-              wheelQuestions,
+              selected,
         ),
       ),
     );
-
-    if (mounted) {
-      _refreshFeed();
-    }
   }
 
   void _openPublisherProfile(
@@ -190,7 +258,7 @@ class _OnlineFeedScreenState
     );
   }
 
-  Widget _buildHashtags(
+  Widget _hashtags(
     Question question,
   ) {
     if (question.hashtags.isEmpty) {
@@ -200,27 +268,255 @@ class _OnlineFeedScreenState
     return Padding(
       padding:
           const EdgeInsets.only(
-        top: 16,
+        top: 14,
       ),
       child: Wrap(
         spacing: 8,
-        runSpacing: 8,
+        runSpacing: 6,
         alignment:
             WrapAlignment.center,
         children:
             question.hashtags.map(
-          (hashtag) {
+          (tag) {
             return Text(
-              '#$hashtag',
+              '#$tag',
               style:
                   AppTextStyles.caption
                       .copyWith(
                 color:
-                    AppColors.textSecondary,
+                    AppColors
+                        .textSecondary,
               ),
             );
           },
         ).toList(),
+      ),
+    );
+  }
+
+  Widget _feedPage(
+    FeedCard card,
+  ) {
+    final category =
+        AppCategories.byId(
+      card.question.categoryId,
+    );
+
+    final saved =
+        _interactions.isSaved(
+      card.id,
+    );
+
+    return Padding(
+      padding:
+          const EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        16,
+      ),
+      child: Column(
+        children: [
+          // Publisher
+          LiquidGlassContainer(
+            padding:
+                const EdgeInsets
+                    .symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () =>
+                        _openPublisherProfile(
+                      card,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(
+                      12,
+                    ),
+                    child: Padding(
+                      padding:
+                          const EdgeInsets
+                              .symmetric(
+                        vertical: 6,
+                      ),
+                      child:
+                          Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment
+                                .start,
+                        children: [
+                          Text(
+                            card.publisher.name,
+                            style:
+                                AppTextStyles
+                                    .username,
+                          ),
+                          Text(
+                            card.publisher.handle,
+                            style:
+                                AppTextStyles
+                                    .caption,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                IconButton(
+                  tooltip:
+                      saved
+                          ? 'حذف من المحفوظات'
+                          : 'سأجيب لاحقًا',
+                  onPressed: () =>
+                      _toggleSave(
+                    card,
+                  ),
+                  icon: Icon(
+                    saved
+                        ? Icons
+                            .bookmark_rounded
+                        : Icons
+                            .bookmark_border_rounded,
+                  ),
+                  color:
+                      saved
+                          ? AppColors
+                              .secondary
+                          : AppColors
+                              .textPrimary,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(
+            height: 12,
+          ),
+
+          Expanded(
+            child:
+                SwipeableCard(
+              onSwipeLeft: () =>
+                  _markNotInterested(
+                card,
+              ),
+              onSwipeRight: () =>
+                  _markInterested(
+                card,
+              ),
+              child:
+                  GestureDetector(
+                onTap: () =>
+                    _openQuestion(
+                  card,
+                ),
+                child:
+                    LiquidGlassContainer(
+                  padding:
+                      const EdgeInsets
+                          .all(
+                    24,
+                  ),
+                  child:
+                      Column(
+                    mainAxisAlignment:
+                        MainAxisAlignment
+                            .center,
+                    children: [
+                      Container(
+                        padding:
+                            const EdgeInsets
+                                .symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              category
+                                  .color
+                                  .withOpacity(
+                            0.12,
+                          ),
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                            999,
+                          ),
+                          border:
+                              Border.all(
+                            color:
+                                category
+                                    .color
+                                    .withOpacity(
+                              0.65,
+                            ),
+                          ),
+                        ),
+                        child:
+                            Text(
+                          category.name,
+                          style:
+                              AppTextStyles
+                                  .caption
+                                  .copyWith(
+                            color:
+                                category
+                                    .color,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(
+                        height: 28,
+                      ),
+
+                      Text(
+                        card.question.text,
+                        textAlign:
+                            TextAlign
+                                .center,
+                        style:
+                            AppTextStyles
+                                .displayLarge,
+                      ),
+
+                      _hashtags(
+                        card.question,
+                      ),
+
+                      const SizedBox(
+                        height: 28,
+                      ),
+
+                      Text(
+                        'اضغط للإجابة',
+                        style:
+                            AppTextStyles
+                                .caption,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(
+            height: 12,
+          ),
+
+          Text(
+            '${_currentIndex + 1} / ${_cards.length}',
+            style:
+                AppTextStyles.caption,
+          ),
+        ],
       ),
     );
   }
@@ -233,12 +529,6 @@ class _OnlineFeedScreenState
       return Scaffold(
         backgroundColor:
             AppColors.background,
-        appBar: AppBar(
-          title:
-              const Text(
-            'التصفح الأونلاين',
-          ),
-        ),
         body: const Center(
           child: Text(
             'لا توجد أسئلة حاليًا.',
@@ -249,347 +539,59 @@ class _OnlineFeedScreenState
       );
     }
 
-    final current =
-        _cards[_currentIndex];
-
-    final category =
-        AppCategories.byId(
-      current.question.categoryId,
-    );
-
     return Scaffold(
       backgroundColor:
           AppColors.background,
-
       appBar: AppBar(
         title:
             const Text(
-          'التصفح الأونلاين',
+          'الرئيسية',
         ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip:
+                'العجلة',
+            onPressed: () =>
+                _openPublisherWheel(
+              _cards[
+                  _currentIndex],
+            ),
+            icon:
+                const Icon(
+              Icons.casino_outlined,
+            ),
+          ),
+        ],
       ),
-
       body: Stack(
         children: [
-          LiquidBackground(
-            primaryOrbColor:
-                category.color,
-            secondaryOrbColor:
-                category.color
-                    .withOpacity(0.42),
-          ),
+          const LiquidBackground(),
 
           SafeArea(
-            child: Padding(
-              padding:
-                  const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  // ─────────────────────────
-                  // Publisher header
-                  // ─────────────────────────
-
-                  LiquidGlassContainer(
-                    padding:
-                        const EdgeInsets
-                            .symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 10,
-                          height: 10,
-                          decoration:
-                              BoxDecoration(
-                            shape:
-                                BoxShape.circle,
-                            color: current
-                                .publisher
-                                .accentColor,
-                          ),
-                        ),
-
-                        const SizedBox(
-                          width: 10,
-                        ),
-
-                        Expanded(
-                          child:
-                              InkWell(
-                            borderRadius:
-                                BorderRadius
-                                    .circular(
-                              10,
-                            ),
-                            onTap: () =>
-                                _openPublisherProfile(
-                              current,
-                            ),
-                            child:
-                                Padding(
-                              padding:
-                                  const EdgeInsets
-                                      .symmetric(
-                                vertical: 6,
-                              ),
-                              child:
-                                  Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment
-                                        .start,
-                                children: [
-                                  Text(
-                                    current
-                                        .publisher
-                                        .name,
-                                    style:
-                                        AppTextStyles
-                                            .username,
-                                  ),
-                                  Text(
-                                    current
-                                        .publisher
-                                        .handle,
-                                    style:
-                                        AppTextStyles
-                                            .caption,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        Text(
-                          current.pack.title,
-                          style:
-                              AppTextStyles
-                                  .caption,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 24,
-                  ),
-
-                  // ─────────────────────────
-                  // Main feed card
-                  // ─────────────────────────
-
-                  Expanded(
-                    child:
-                        SwipeableCard(
-                      key: ValueKey(
-                        'feed_card_${current.id}_$_cardNonce',
-                      ),
-                      onSwipeLeft:
-                          _skip,
-                      onSwipeRight: () =>
-                          _openPublisherWheel(
-                        current,
-                      ),
-                      child:
-                          LiquidGlassContainer(
-                        child: Column(
-                          mainAxisAlignment:
-                              MainAxisAlignment
-                                  .center,
-                          children: [
-                            Container(
-                              padding:
-                                  const EdgeInsets
-                                      .symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              decoration:
-                                  BoxDecoration(
-                                color: category
-                                    .color
-                                    .withOpacity(
-                                  0.15,
-                                ),
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                  999,
-                                ),
-                                border:
-                                    Border.all(
-                                  color:
-                                      category
-                                          .color,
-                                ),
-                              ),
-                              child:
-                                  Text(
-                                category.name,
-                                style:
-                                    AppTextStyles
-                                        .caption
-                                        .copyWith(
-                                  color:
-                                      category
-                                          .color,
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(
-                              height: 24,
-                            ),
-
-                            Text(
-                              current
-                                  .question
-                                  .text,
-                              textAlign:
-                                  TextAlign
-                                      .center,
-                              style:
-                                  AppTextStyles
-                                      .displayLarge,
-                            ),
-
-                            _buildHashtags(
-                              current.question,
-                            ),
-
-                            const SizedBox(
-                              height: 24,
-                            ),
-
-                            Text(
-                              'اسحب يمينًا للدخول إلى عجلة الناشر',
-                              style:
-                                  AppTextStyles
-                                      .caption,
-                              textAlign:
-                                  TextAlign
-                                      .center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 24,
-                  ),
-
-                  // ─────────────────────────
-                  // Actions
-                  // ─────────────────────────
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child:
-                            ElevatedButton
-                                .icon(
-                          onPressed:
-                              _skip,
-                          icon:
-                              const Icon(
-                            Icons
-                                .arrow_back,
-                          ),
-                          label:
-                              const Text(
-                            'تخطي',
-                          ),
-                          style:
-                              ElevatedButton
-                                  .styleFrom(
-                            backgroundColor:
-                                AppColors
-                                    .surfaceVariant,
-                            foregroundColor:
-                                AppColors
-                                    .textPrimary,
-                            elevation: 0,
-                            padding:
-                                const EdgeInsets
-                                    .symmetric(
-                              vertical: 14,
-                            ),
-                            shape:
-                                RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                18,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(
-                        width: 16,
-                      ),
-
-                      Expanded(
-                        child:
-                            ElevatedButton
-                                .icon(
-                          onPressed:
-                              () =>
-                                  _openPublisherWheel(
-                            current,
-                          ),
-                          icon:
-                              const Icon(
-                            Icons.check,
-                          ),
-                          label:
-                              const Text(
-                            'موافق',
-                          ),
-                          style:
-                              ElevatedButton
-                                  .styleFrom(
-                            backgroundColor:
-                                AppColors
-                                    .primary,
-                            foregroundColor:
-                                AppColors
-                                    .onPrimary,
-                            elevation: 0,
-                            padding:
-                                const EdgeInsets
-                                    .symmetric(
-                              vertical: 14,
-                            ),
-                            shape:
-                                RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                18,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(
-                    height: 16,
-                  ),
-
-                  Text(
-                    '${_currentIndex + 1} / ${_cards.length}',
-                    style:
-                        AppTextStyles.caption,
-                  ),
-                ],
-              ),
+            child:
+                PageView.builder(
+              controller:
+                  _pageController,
+              scrollDirection:
+                  Axis.vertical,
+              physics:
+                  const PageScrollPhysics(),
+              itemCount:
+                  _cards.length,
+              onPageChanged:
+                  (index) {
+                setState(() {
+                  _currentIndex =
+                      index;
+                });
+              },
+              itemBuilder:
+                  (context, index) {
+                return _feedPage(
+                  _cards[index],
+                );
+              },
             ),
           ),
         ],
