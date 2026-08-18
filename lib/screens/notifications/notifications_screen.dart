@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/auth/auth_session.dart';
 import '../../core/notifications/notification_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
@@ -25,13 +26,16 @@ class _NotificationsScreenState
   final _store =
       NotificationStore.instance;
 
-  @override
-  void initState() {
-    super.initState();
-  }
+  final _session =
+      AuthSession.instance;
 
   void _markAllAsRead() {
-    _store.markAllAsRead();
+    final userId =
+        _session.currentUser.id;
+
+    _store.markAllAsReadForUser(
+      userId,
+    );
 
     setState(() {});
   }
@@ -50,7 +54,8 @@ class _NotificationsScreenState
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ProfileScreen(
+            builder: (_) =>
+                ProfileScreen(
               userId:
                   notification.actorUserId,
             ),
@@ -61,8 +66,9 @@ class _NotificationsScreenState
       case NotificationType.like:
       case NotificationType.comment:
       case NotificationType.newQuestion:
-        // The target screen will be connected
-        // when the question-detail route exists.
+        // Question detail navigation will
+        // be connected when the dedicated
+        // question-detail screen is ready.
         break;
     }
   }
@@ -97,13 +103,15 @@ class _NotificationsScreenState
   ) {
     switch (type) {
       case NotificationType.follow:
-        return Icons.person_add_alt_1_rounded;
+        return Icons
+            .person_add_alt_1_rounded;
 
       case NotificationType.like:
         return Icons.favorite_rounded;
 
       case NotificationType.comment:
-        return Icons.chat_bubble_outline_rounded;
+        return Icons
+            .chat_bubble_outline_rounded;
 
       case NotificationType.newQuestion:
         return Icons.help_outline_rounded;
@@ -132,8 +140,18 @@ class _NotificationsScreenState
   Widget build(
     BuildContext context,
   ) {
+    final currentUser =
+        _session.currentUser;
+
     final notifications =
-        _store.notifications;
+        _store.notificationsForUser(
+      currentUser.id,
+    );
+
+    final unread =
+        _store.unreadCountForUser(
+      currentUser.id,
+    );
 
     return Scaffold(
       backgroundColor:
@@ -143,7 +161,7 @@ class _NotificationsScreenState
         title:
             const Text('الإشعارات'),
         actions: [
-          if (_store.unreadCount > 0)
+          if (unread > 0)
             TextButton(
               onPressed:
                   _markAllAsRead,
@@ -158,57 +176,52 @@ class _NotificationsScreenState
           const LiquidBackground(),
 
           SafeArea(
-            child:
-                notifications.isEmpty
-                    ? const _EmptyNotifications()
-                    : ListView.separated(
-                        padding:
-                            const EdgeInsets.fromLTRB(
-                          AppSpacing.x16,
-                          AppSpacing.x12,
-                          AppSpacing.x16,
-                          AppSpacing.x24,
-                        ),
-                        itemCount:
-                            notifications.length,
-                        separatorBuilder:
-                            (_, __) =>
-                                const SizedBox(
-                          height:
-                              AppSpacing.x8,
-                        ),
-                        itemBuilder:
-                            (context, index) {
-                          final notification =
-                              notifications[
-                                  index];
+            child: notifications.isEmpty
+                ? const _EmptyNotifications()
+                : ListView.separated(
+                    padding:
+                        const EdgeInsets.fromLTRB(
+                      AppSpacing.x16,
+                      AppSpacing.x12,
+                      AppSpacing.x16,
+                      AppSpacing.x24,
+                    ),
+                    itemCount:
+                        notifications.length,
+                    separatorBuilder:
+                        (_, __) =>
+                            const SizedBox(
+                      height:
+                          AppSpacing.x8,
+                    ),
+                    itemBuilder:
+                        (context, index) {
+                      final notification =
+                          notifications[index];
 
-                          return _NotificationTile(
-                            notification:
-                                notification,
-                            icon:
-                                _iconFor(
-                              notification
-                                  .type,
-                            ),
-                            iconColor:
-                                _iconColorFor(
-                              notification
-                                  .type,
-                            ),
-                            timeLabel:
-                                _timeLabel(
-                              notification
-                                  .createdAt,
-                            ),
-                            onTap:
-                                () =>
-                                    _openNotification(
-                              notification,
-                            ),
-                          );
-                        },
-                      ),
+                      return _NotificationTile(
+                        notification:
+                            notification,
+                        icon:
+                            _iconFor(
+                          notification.type,
+                        ),
+                        iconColor:
+                            _iconColorFor(
+                          notification.type,
+                        ),
+                        timeLabel:
+                            _timeLabel(
+                          notification.createdAt,
+                        ),
+                        onTap:
+                            () =>
+                                _openNotification(
+                          notification,
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -253,8 +266,6 @@ class _NotificationTile
           vertical: 14,
         ),
         child: Row(
-          crossAxisAlignment:
-              CrossAxisAlignment.center,
           children: [
             Container(
               width: 44,
@@ -271,7 +282,8 @@ class _NotificationTile
               child: Icon(
                 icon,
                 size: 22,
-                color: iconColor,
+                color:
+                    iconColor,
               ),
             ),
 
@@ -293,17 +305,13 @@ class _NotificationTile
                             .copyWith(
                       fontWeight:
                           isUnread
-                              ? FontWeight
-                                  .w600
-                              : FontWeight
-                                  .w400,
+                              ? FontWeight.w600
+                              : FontWeight.w400,
                     ),
                   ),
-
                   const SizedBox(
                     height: 4,
                   ),
-
                   Text(
                     timeLabel,
                     style:
@@ -351,7 +359,7 @@ class _EmptyNotifications
           mainAxisSize:
               MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons
                   .notifications_none_rounded,
               size: 48,
