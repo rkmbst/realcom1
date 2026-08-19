@@ -246,6 +246,10 @@ class _OnlineFeedScreenState
   Future<void> _openQuestion(
     FeedCard card,
   ) async {
+    _interactions.markOpened(
+      card.id,
+    );
+
     await Navigator.push(
       context,
       MaterialPageRoute(
