@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/online/feed_interaction_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/categories.dart';
@@ -31,6 +32,9 @@ class OnlineQuestionScreen extends StatefulWidget {
 
 class _OnlineQuestionScreenState
     extends State<OnlineQuestionScreen> {
+  final _feedInteractions =
+      FeedInteractionStore.instance;
+
   late final List<QuestionOption> _options;
 
   String? _selectedOptionId;
@@ -56,6 +60,10 @@ class _OnlineQuestionScreenState
     if (selectedOptionId == null) {
       return;
     }
+
+    _feedInteractions.markAnswered(
+      widget.question.id,
+    );
 
     Haptics.light();
 
