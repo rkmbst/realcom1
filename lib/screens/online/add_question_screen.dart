@@ -27,7 +27,7 @@ class AddQuestionScreen extends StatefulWidget {
 
 class _AddQuestionScreenState
     extends State<AddQuestionScreen> {
-  static const int minQuestions = 1;
+  static const int minQuestions = 3;
   static const int maxQuestions = 5;
 
   static const int maxHashtags = 5;
@@ -57,15 +57,18 @@ class _AddQuestionScreenState
   void initState() {
     super.initState();
 
-    _draftQuestions.add(
-      _DraftQuestion(
-        textController: TextEditingController(),
-        option1Controller: TextEditingController(),
-        option2Controller: TextEditingController(),
-        option3Controller: TextEditingController(),
-        type: QuestionType.poll,
-      ),
-    );
+    // Initialize with 3 draft questions (min required)
+    for (var i = 0; i < minQuestions; i++) {
+      _draftQuestions.add(
+        _DraftQuestion(
+          textController: TextEditingController(),
+          option1Controller: TextEditingController(),
+          option2Controller: TextEditingController(),
+          option3Controller: TextEditingController(),
+          type: QuestionType.poll,
+        ),
+      );
+    }
   }
 
   @override
@@ -156,6 +159,7 @@ class _AddQuestionScreenState
 
   void _removeQuestion(int index) {
     if (_draftQuestions.length <= minQuestions) {
+      _showMessage('يجب أن تحتوي المجموعة على 3 أسئلة على الأقل.');
       return;
     }
 
@@ -170,7 +174,10 @@ class _AddQuestionScreenState
       return;
     }
 
-    if (_draftQuestions.isEmpty) return;
+    if (_draftQuestions.length < minQuestions) {
+      _showMessage('يجب إضافة $minQuestions أسئلة على الأقل.');
+      return;
+    }
 
     FocusScope.of(context).unfocus();
 
@@ -247,7 +254,7 @@ class _AddQuestionScreenState
       questions: List.unmodifiable(createdQuestions),
     );
 
-    // ✅ التعديل الجديد
+    // ✅ التعديل المطلوب
     _questionStore.addAll(createdQuestions);
 
     _packStore.publish(
@@ -597,7 +604,7 @@ class _AddQuestionScreenState
                           Text('أنشئ مجموعة أسئلة', style: AppTextStyles.titleLarge),
                           const SizedBox(height: AppSpacing.x8),
                           Text(
-                            'أضف من سؤال إلى 5 أسئلة. لكل سؤال نوع مستقل.',
+                            'أضف من 3 إلى 5 أسئلة. لكل سؤال نوع مستقل.',
                             style: AppTextStyles.bodyMedium,
                           ),
                         ],
