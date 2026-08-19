@@ -1,6 +1,3 @@
-import '../../core/notifications/notification_store.dart';
-import '../../core/social/follow_store.dart';
-import '../../models/notification.dart';
 import '../../models/question.dart';
 
 class QuestionStore {
@@ -9,66 +6,24 @@ class QuestionStore {
   static final QuestionStore instance =
       QuestionStore._();
 
-  final List<Question>
-      _publishedQuestions =
+  final List<Question> _publishedQuestions =
       <Question>[];
 
-  List<Question>
-      get publishedQuestions =>
-          List.unmodifiable(
+  List<Question> get publishedQuestions =>
+      List.unmodifiable(
         _publishedQuestions,
       );
 
-  void add(
-    Question question,
+  void add(Question question) {
+    _publishedQuestions.add(question);
+  }
+
+  void addAll(
+    Iterable<Question> questions,
   ) {
-    _publishedQuestions.add(
-      question,
+    _publishedQuestions.addAll(
+      questions,
     );
-
-    final authorId =
-        question.authorId;
-
-    final authorName =
-        question.authorName;
-
-    if (authorId == null ||
-        authorName == null) {
-      return;
-    }
-
-    final followerIds =
-        FollowStore.instance
-            .followerIds(
-      authorId,
-    );
-
-    for (final followerId
-        in followerIds) {
-      NotificationStore
-          .instance
-          .add(
-        AppNotification(
-          id:
-              'question-$authorId-${question.id}-$followerId',
-          type:
-              NotificationType
-                  .newQuestion,
-          recipientUserId:
-              followerId,
-          actorUserId:
-              authorId,
-          actorName:
-              authorName,
-          message:
-              '$authorName نشر سؤالًا جديدًا',
-          targetId:
-              question.id,
-          createdAt:
-              DateTime.now(),
-        ),
-      );
-    }
   }
 
   List<Question> byAuthor(
@@ -101,15 +56,12 @@ class QuestionStore {
     String hashtag,
   ) {
     final normalized =
-        _normalizeHashtag(
-      hashtag,
-    );
+        _normalizeHashtag(hashtag);
 
     return _publishedQuestions
         .where(
           (question) =>
-              question.hashtags
-                  .contains(
+              question.hashtags.contains(
             normalized,
           ),
         )
@@ -137,10 +89,7 @@ class QuestionStore {
   ) {
     return value
         .trim()
-        .replaceFirst(
-          '#',
-          '',
-        )
+        .replaceFirst('#', '')
         .toLowerCase();
   }
 }
