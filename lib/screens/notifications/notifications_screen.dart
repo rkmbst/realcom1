@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/auth_session.dart';
+import '../../core/auth/user_directory.dart';
 import '../../core/notifications/notification_store.dart';
+import '../../core/online/question_pack_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/notification.dart';
+import '../../models/publisher.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
+import '../online/pack_question_flow_screen.dart';
 import '../profile/profile_screen.dart';
 
-class NotificationsScreen
-    extends StatefulWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({
     super.key,
   });
@@ -29,6 +32,12 @@ class _NotificationsScreenState
   final _session =
       AuthSession.instance;
 
+  final _directory =
+      UserDirectory.instance;
+
+  final _packStore =
+      QuestionPackStore.instance;
+
   void _markAllAsRead() {
     final userId =
         _session.currentUser.id;
@@ -38,6 +47,54 @@ class _NotificationsScreenState
     );
 
     setState(() {});
+  }
+
+  Future<void> _openPackFromNotification(
+    AppNotification notification,
+  ) async {
+    final packId =
+        notification.targetId;
+
+    if (packId == null) {
+      return;
+    }
+
+    final pack =
+        _packStore.find(packId);
+
+    if (pack == null ||
+        pack.questions.isEmpty) {
+      return;
+    }
+
+    final user =
+        _directory.find(
+      pack.publisherId,
+    );
+
+    if (user == null) {
+      return;
+    }
+
+    final publisher =
+        Publisher.fromUser(
+      user,
+      accentColor:
+          AppColors.primary,
+    );
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            PackQuestionFlowScreen(
+          publisher:
+              publisher,
+          pack:
+              pack,
+        ),
+      ),
+    );
   }
 
   void _openNotification(
@@ -65,10 +122,12 @@ class _NotificationsScreenState
 
       case NotificationType.like:
       case NotificationType.comment:
+        break;
+
       case NotificationType.newQuestion:
-        // Question detail navigation will
-        // be connected when the dedicated
-        // question-detail screen is ready.
+        _openPackFromNotification(
+          notification,
+        );
         break;
     }
   }
