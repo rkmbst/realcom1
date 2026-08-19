@@ -4,7 +4,6 @@ import '../../core/auth/auth_session.dart';
 import '../../core/auth/user_directory.dart';
 import '../../core/online/feed_interaction_store.dart';
 import '../../core/online/question_pack_store.dart';
-import '../../core/online/question_store.dart';
 import '../../core/social/follow_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
@@ -42,7 +41,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   final _session = AuthSession.instance;
   final _directory = UserDirectory.instance;
   final _followStore = FollowStore.instance;
-  final _questionStore = QuestionStore.instance;
   final _packStore = QuestionPackStore.instance;
   final _feedInteractions = FeedInteractionStore.instance;
 
@@ -222,7 +220,6 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     final isOwnProfile = viewedUser.id == currentUser.id;
     final isFollowing = _followStore.isFollowing(viewedUser.id);
-    final publishedQuestions = _questionStore.byAuthor(viewedUser.id);
     final publishedPacks = _packStore.byPublisher(viewedUser.id);
     final followerCount = viewedUser.followersCount +
         _followStore.followerCount(viewedUser.id);
