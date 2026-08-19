@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/online/feed_interaction_store.dart';
 import '../../core/social/comment_store.dart';
+import '../../core/social/question_social_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/categories.dart';
@@ -39,6 +40,9 @@ class _OnlineQuestionScreenState
   final _commentStore =
       CommentStore.instance;
 
+  final _socialService =
+      QuestionSocialService.instance;
+
   late final List<QuestionOption> _options;
 
   String? _selectedOptionId;
@@ -59,11 +63,22 @@ class _OnlineQuestionScreenState
   }
 
   void _toggleLike() {
+    final wasLiked =
+        _feedInteractions.isLiked(
+      widget.question.id,
+    );
+
     setState(() {
       _feedInteractions.toggleLike(
         widget.question.id,
       );
     });
+
+    if (!wasLiked) {
+      _socialService.notifyLike(
+        question: widget.question,
+      );
+    }
 
     Haptics.light();
   }
@@ -200,6 +215,10 @@ class _OnlineQuestionScreenState
     _commentStore.add(
       questionId: widget.question.id,
       text: text,
+    );
+
+    _socialService.notifyComment(
+      question: widget.question,
     );
 
     controller.clear();
