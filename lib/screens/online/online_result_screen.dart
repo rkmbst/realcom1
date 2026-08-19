@@ -10,8 +10,6 @@ import '../../core/utils/haptics.dart';
 import '../../data/mock_online_data.dart';
 import '../../models/question.dart';
 import '../../models/question_option.dart';
-import '../../models/notification.dart';
-import '../../core/notifications/notification_store.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
 import 'online_feed_screen.dart';
@@ -223,7 +221,6 @@ class _OnlineResultScreenState
 
       case QuestionType.discussion:
         return 'شارك برأيك وأكمل النقاش.';
-
     }
   }
 
