@@ -4,6 +4,7 @@ import '../../core/auth/auth_session.dart';
 import '../../core/auth/user_directory.dart';
 import '../../core/notifications/notification_store.dart';
 import '../../core/online/question_pack_store.dart';
+import '../../core/online/question_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -11,6 +12,7 @@ import '../../models/notification.dart';
 import '../../models/publisher.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
+import '../online/online_question_screen.dart';
 import '../online/pack_question_flow_screen.dart';
 import '../profile/profile_screen.dart';
 
@@ -37,6 +39,9 @@ class _NotificationsScreenState
 
   final _packStore =
       QuestionPackStore.instance;
+
+  final _questionStore =
+      QuestionStore.instance;
 
   void _markAllAsRead() {
     final userId =
@@ -97,6 +102,55 @@ class _NotificationsScreenState
     );
   }
 
+  Future<void> _openQuestionNotification(
+    AppNotification notification,
+  ) async {
+    final questionId =
+        notification.targetId;
+
+    if (questionId == null) {
+      return;
+    }
+
+    final question =
+        _questionStore.find(
+      questionId,
+    );
+
+    if (question == null ||
+        question.authorId == null) {
+      return;
+    }
+
+    final user =
+        _directory.find(
+      question.authorId!,
+    );
+
+    if (user == null) {
+      return;
+    }
+
+    final publisher =
+        Publisher.fromUser(
+      user,
+      accentColor:
+          AppColors.primary,
+    );
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            OnlineQuestionScreen(
+          question: question,
+          publisher: publisher,
+          isLastQuestion: true,
+        ),
+      ),
+    );
+  }
+
   void _openNotification(
     AppNotification notification,
   ) {
@@ -122,6 +176,9 @@ class _NotificationsScreenState
 
       case NotificationType.like:
       case NotificationType.comment:
+        _openQuestionNotification(
+          notification,
+        );
         break;
 
       case NotificationType.newQuestion:
