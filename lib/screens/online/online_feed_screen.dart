@@ -8,7 +8,9 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/categories.dart';
 import '../../data/mock_online_data.dart';
 import '../../models/feed_card.dart';
+import '../../models/publisher.dart';
 import '../../models/question.dart';
+import '../../models/question_pack.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
 import '../../widgets/swipeable_card.dart';
@@ -16,8 +18,7 @@ import '../profile/profile_screen.dart';
 import 'online_question_screen.dart';
 import 'publisher_wheel_screen.dart';
 
-class OnlineFeedScreen
-    extends StatefulWidget {
+class OnlineFeedScreen extends StatefulWidget {
   const OnlineFeedScreen({
     super.key,
   });
@@ -112,16 +113,26 @@ class _OnlineFeedScreenState
         continue;
       }
 
-      final publisher =
-          MockOnlineData.publisherFromUser(
-        author,
+      final category =
+          AppCategories.byId(
         question.categoryId,
       );
 
-      final pack =
-          MockOnlineData.packFromQuestion(
-        publisher,
-        question,
+      final publisher = Publisher(
+        id: author.id,
+        name: author.displayName,
+        handle: '@${author.username}',
+        accentColor: category.color,
+      );
+
+      final pack = QuestionPack(
+        id: 'user_pack_${author.id}',
+        publisherId: author.id,
+        title:
+            'أسئلة ${author.displayName}',
+        questions: [
+          question,
+        ],
       );
 
       cards.add(
