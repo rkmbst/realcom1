@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/auth_session.dart';
+import '../../core/online/question_pack_store.dart';
 import '../../core/online/question_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
@@ -10,6 +11,7 @@ import '../../core/utils/categories.dart';
 import '../../core/utils/haptics.dart';
 import '../../models/question.dart';
 import '../../models/question_option.dart';
+import '../../models/question_pack.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
 
@@ -25,11 +27,23 @@ class AddQuestionScreen extends StatefulWidget {
 
 class _AddQuestionScreenState
     extends State<AddQuestionScreen> {
+  static const int minQuestions = 1;
+  static const int maxQuestions = 5;
+
   static const int maxHashtags = 5;
   static const int maxHashtagLength = 24;
 
-  final _formKey =
-      GlobalKey<FormState>();
+  final _session =
+      AuthSession.instance;
+
+  final _questionStore =
+      QuestionStore.instance;
+
+  final _packStore =
+      QuestionPackStore.instance;
+
+  final _packTitleController =
+      TextEditingController();
 
   final _questionController =
       TextEditingController();
@@ -46,11 +60,8 @@ class _AddQuestionScreenState
   final _hashtagController =
       TextEditingController();
 
-  final _session =
-      AuthSession.instance;
-
-  final _questionStore =
-      QuestionStore.instance;
+  final _formKey =
+      GlobalKey<FormState>();
 
   final List<String> _hashtags =
       <String>[];
@@ -58,22 +69,55 @@ class _AddQuestionScreenState
   int _selectedCategoryId =
       AppCategories.all.first.id;
 
+  QuestionType _questionType =
+      QuestionType.poll;
+
   int? _correctOptionIndex;
+
+  final List<_DraftQuestion>
+      _draftQuestions =
+      <_DraftQuestion>[];
 
   bool _publishing = false;
 
   @override
+  void initState() {
+    super.initState();
+
+    _draftQuestions.add(
+      _DraftQuestion(
+        textController:
+            TextEditingController(),
+        option1Controller:
+            TextEditingController(),
+        option2Controller:
+            TextEditingController(),
+        option3Controller:
+            TextEditingController(),
+        type: QuestionType.poll,
+      ),
+    );
+  }
+
+  @override
   void dispose() {
+    _packTitleController.dispose();
     _questionController.dispose();
     _option1Controller.dispose();
     _option2Controller.dispose();
     _option3Controller.dispose();
     _hashtagController.dispose();
+
+    for (final draft
+        in _draftQuestions) {
+      draft.dispose();
+    }
+
     super.dispose();
   }
 
   String _newId(String prefix) {
-    return '$prefix-${DateTime.now().microsecondsSinceEpoch}';
+    return '$prefix-${DateTime.now().microsecondsSinceEpoch}-${_draftQuestions.length}';
   }
 
   String _normalizeHashtag(
@@ -86,18 +130,18 @@ class _AddQuestionScreenState
   }
 
   void _addHashtag() {
-    if (_hashtags.length >= maxHashtags) {
+    if (_hashtags.length >=
+        maxHashtags) {
       _showMessage(
         'يمكنك إضافة 5 هاشتاقات كحد أقصى.',
       );
       return;
     }
 
-    final raw =
-        _hashtagController.text;
-
     final hashtag =
-        _normalizeHashtag(raw);
+        _normalizeHashtag(
+      _hashtagController.text,
+    );
 
     if (hashtag.isEmpty) {
       return;
@@ -146,16 +190,69 @@ class _AddQuestionScreenState
     });
   }
 
+  void _setType(
+    QuestionType type,
+  ) {
+    setState(() {
+      _questionType = type;
+
+      if (type != QuestionType.quiz) {
+        _correctOptionIndex = null;
+      }
+    });
+  }
+
+  void _addQuestion() {
+    if (_draftQuestions.length >=
+        maxQuestions) {
+      _showMessage(
+        'يمكنك إضافة 5 أسئلة كحد أقصى.',
+      );
+      return;
+    }
+
+    setState(() {
+      _draftQuestions.add(
+        _DraftQuestion(
+          textController:
+              TextEditingController(),
+          option1Controller:
+              TextEditingController(),
+          option2Controller:
+              TextEditingController(),
+          option3Controller:
+              TextEditingController(),
+          type: QuestionType.poll,
+        ),
+      );
+    });
+  }
+
+  void _removeQuestion(
+    int index,
+  ) {
+    if (_draftQuestions.length <=
+        minQuestions) {
+      return;
+    }
+
+    final draft =
+        _draftQuestions.removeAt(
+      index,
+    );
+
+    draft.dispose();
+
+    setState(() {});
+  }
+
   Future<void> _publish() async {
     if (!_formKey.currentState!
         .validate()) {
       return;
     }
 
-    if (_correctOptionIndex == null) {
-      _showMessage(
-        'حدد الإجابة الصحيحة أولًا.',
-      );
+    if (_draftQuestions.isEmpty) {
       return;
     }
 
@@ -166,43 +263,128 @@ class _AddQuestionScreenState
     });
 
     await Future.delayed(
-      const Duration(milliseconds: 220),
-    );
-
-    final optionTexts = [
-      _option1Controller.text.trim(),
-      _option2Controller.text.trim(),
-      _option3Controller.text.trim(),
-    ];
-
-    final options =
-        List<QuestionOption>.generate(
-      optionTexts.length,
-      (index) => QuestionOption(
-        id: _newId('option'),
-        text: optionTexts[index],
+      const Duration(
+        milliseconds: 180,
       ),
     );
 
-    final question = Question(
-      id: _newId('question'),
-      text:
-          _questionController.text.trim(),
-      categoryId: _selectedCategoryId,
-      options: options,
-      authorName:
-          _session.currentUser.displayName,
-      authorId:
-          _session.currentUser.id,
-      correctOptionId:
-          options[_correctOptionIndex!].id,
-      hashtags:
-          List.unmodifiable(_hashtags),
+    final currentUser =
+        _session.currentUser;
+
+    final packId =
+        _newId('pack');
+
+    final createdQuestions =
+        <Question>[];
+
+    for (
+      var index = 0;
+      index < _draftQuestions.length;
+      index++
+    ) {
+      final draft =
+          _draftQuestions[index];
+
+      if (draft.type ==
+          QuestionType.quiz &&
+          draft.correctOptionIndex ==
+              null) {
+        _showMessage(
+          'حدد الإجابة الصحيحة في السؤال ${index + 1}.',
+        );
+
+        setState(() {
+          _publishing = false;
+        });
+
+        return;
+      }
+
+      final optionTexts = [
+        draft.option1Controller.text
+            .trim(),
+        draft.option2Controller.text
+            .trim(),
+        draft.option3Controller.text
+            .trim(),
+      ];
+
+      final options =
+          List<QuestionOption>.generate(
+        optionTexts.length,
+        (optionIndex) =>
+            QuestionOption(
+          id: _newId(
+            'option',
+          ),
+          text:
+              optionTexts[optionIndex],
+        ),
+      );
+
+      final correctOptionId =
+          draft.type ==
+                  QuestionType.quiz
+              ? options[
+                  draft.correctOptionIndex!]
+                  .id
+              : null;
+
+      createdQuestions.add(
+        Question(
+          id: _newId('question'),
+          text:
+              draft.textController.text
+                  .trim(),
+          categoryId:
+              _selectedCategoryId,
+          options: options,
+          authorName:
+              currentUser.displayName,
+          authorId:
+              currentUser.id,
+          type: draft.type,
+          correctOptionId:
+              correctOptionId,
+          hashtags:
+              List.unmodifiable(
+            _hashtags,
+          ),
+        ),
+      );
+    }
+
+    final pack =
+        QuestionPack(
+      id: packId,
+      publisherId:
+          currentUser.id,
+      title:
+          _packTitleController.text
+              .trim()
+              .isEmpty
+          ? 'مجموعة ${currentUser.displayName}'
+          : _packTitleController
+              .text
+              .trim(),
+      questions:
+          List.unmodifiable(
+        createdQuestions,
+      ),
     );
 
-    _questionStore.add(question);
+    for (final question
+        in createdQuestions) {
+      _questionStore.add(
+        question,
+      );
+    }
 
-    if (!mounted) return;
+    _packStore.add(pack);
+
+    if (!mounted) {
+      return;
+    }
 
     Haptics.medium();
 
@@ -211,19 +393,23 @@ class _AddQuestionScreenState
     });
 
     _showMessage(
-      'تم نشر السؤال بنجاح.',
+      'تم نشر المجموعة بنجاح.',
       success: true,
     );
 
     await Future.delayed(
-      const Duration(milliseconds: 350),
+      const Duration(
+        milliseconds: 300,
+      ),
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     Navigator.pop(
       context,
-      question,
+      pack,
     );
   }
 
@@ -234,10 +420,12 @@ class _AddQuestionScreenState
     ScaffoldMessenger.of(context)
         .showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: success
-            ? AppColors.success
-            : AppColors.surface,
+        content:
+            Text(message),
+        backgroundColor:
+            success
+                ? AppColors.success
+                : AppColors.surface,
         behavior:
             SnackBarBehavior.floating,
       ),
@@ -254,20 +442,389 @@ class _AddQuestionScreenState
     );
   }
 
-  Widget _optionField({
+  Widget _typeSelector(
+    QuestionType type,
+  ) {
+    final selected =
+        _questionType == type;
+
+    final labels = {
+      QuestionType.quiz:
+          'اختبار',
+      QuestionType.poll:
+          'تصويت',
+      QuestionType.opinion:
+          'رأي',
+      QuestionType.discussion:
+          'نقاش',
+    };
+
+    final icons = {
+      QuestionType.quiz:
+          Icons.school_outlined,
+      QuestionType.poll:
+          Icons.poll_outlined,
+      QuestionType.opinion:
+          Icons.psychology_outlined,
+      QuestionType.discussion:
+          Icons.forum_outlined,
+    };
+
+    return Expanded(
+      child: InkWell(
+        onTap: () =>
+            _setType(type),
+        borderRadius:
+            BorderRadius.circular(
+          AppRadius.button,
+        ),
+        child: Container(
+          constraints:
+              const BoxConstraints(
+            minHeight: 52,
+          ),
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 10,
+          ),
+          decoration:
+              BoxDecoration(
+            color: selected
+                ? AppColors.primary
+                    .withOpacity(0.10)
+                : AppColors.surface,
+            borderRadius:
+                BorderRadius.circular(
+              AppRadius.button,
+            ),
+            border: Border.all(
+              color: selected
+                  ? AppColors.primary
+                  : AppColors.divider,
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment:
+                MainAxisAlignment.center,
+            children: [
+              Icon(
+                icons[type],
+                size: 20,
+                color: selected
+                    ? AppColors.primary
+                    : AppColors.textSecondary,
+              ),
+              const SizedBox(
+                height: 4,
+              ),
+              Text(
+                labels[type]!,
+                style:
+                    AppTextStyles.caption,
+                textAlign:
+                    TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _questionEditor({
+    required int index,
+  }) {
+    final draft =
+        _draftQuestions[index];
+
+    return LiquidGlassContainer(
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                'السؤال ${index + 1}',
+                style:
+                    AppTextStyles.titleMedium,
+              ),
+              const Spacer(),
+              if (_draftQuestions.length >
+                  minQuestions)
+                IconButton(
+                  onPressed: () =>
+                      _removeQuestion(
+                    index,
+                  ),
+                  tooltip:
+                      'حذف السؤال',
+                  icon:
+                      const Icon(
+                    Icons
+                        .delete_outline_rounded,
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(
+            height: AppSpacing.x12,
+          ),
+
+          TextFormField(
+            controller:
+                draft.textController,
+            minLines: 3,
+            maxLines: 5,
+            maxLength: 240,
+            style:
+                AppTextStyles.bodyLarge,
+            decoration:
+                _decoration(
+              label:
+                  'السؤال',
+              hint:
+                  'اكتب السؤال هنا...',
+            ),
+            validator: (value) {
+              final text =
+                  value?.trim() ??
+                      '';
+
+              if (text.isEmpty) {
+                return 'اكتب السؤال ${index + 1}';
+              }
+
+              if (text.length < 5) {
+                return 'السؤال قصير جدًا';
+              }
+
+              return null;
+            },
+          ),
+
+          const SizedBox(
+            height: AppSpacing.x12,
+          ),
+
+          Text(
+            'نوع السؤال',
+            style:
+                AppTextStyles.caption,
+          ),
+
+          const SizedBox(
+            height: AppSpacing.x8,
+          ),
+
+          Row(
+            children: [
+              _typeButton(
+                draft,
+                QuestionType.poll,
+                'تصويت',
+                Icons.poll_outlined,
+              ),
+              const SizedBox(
+                width: 6,
+              ),
+              _typeButton(
+                draft,
+                QuestionType.quiz,
+                'اختبار',
+                Icons.school_outlined,
+              ),
+              const SizedBox(
+                width: 6,
+              ),
+              _typeButton(
+                draft,
+                QuestionType.opinion,
+                'رأي',
+                Icons.psychology_outlined,
+              ),
+              const SizedBox(
+                width: 6,
+              ),
+              _typeButton(
+                draft,
+                QuestionType.discussion,
+                'نقاش',
+                Icons.forum_outlined,
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: AppSpacing.x16,
+          ),
+
+          _draftOptionField(
+            draft: draft,
+            label: 'الخيار الأول',
+            controller:
+                draft.option1Controller,
+          ),
+
+          const SizedBox(
+            height: AppSpacing.x10,
+          ),
+
+          _draftOptionField(
+            draft: draft,
+            label: 'الخيار الثاني',
+            controller:
+                draft.option2Controller,
+          ),
+
+          const SizedBox(
+            height: AppSpacing.x10,
+          ),
+
+          _draftOptionField(
+            draft: draft,
+            label: 'الخيار الثالث',
+            controller:
+                draft.option3Controller,
+          ),
+
+          if (draft.type ==
+              QuestionType.quiz) ...[
+            const SizedBox(
+              height: AppSpacing.x16,
+            ),
+
+            Text(
+              'الإجابة الصحيحة',
+              style:
+                  AppTextStyles.titleMedium,
+            ),
+
+            const SizedBox(
+              height: AppSpacing.x10,
+            ),
+
+            _draftCorrectChoice(
+              draft: draft,
+              index: 0,
+            ),
+            const SizedBox(
+              height: AppSpacing.x8,
+            ),
+            _draftCorrectChoice(
+              draft: draft,
+              index: 1,
+            ),
+            const SizedBox(
+              height: AppSpacing.x8,
+            ),
+            _draftCorrectChoice(
+              draft: draft,
+              index: 2,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _typeButton(
+    _DraftQuestion draft,
+    QuestionType type,
+    String label,
+    IconData icon,
+  ) {
+    final selected =
+        draft.type == type;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            draft.type = type;
+
+            if (type !=
+                QuestionType.quiz) {
+              draft.correctOptionIndex =
+                  null;
+            }
+          });
+        },
+        borderRadius:
+            BorderRadius.circular(
+          14,
+        ),
+        child: Container(
+          constraints:
+              const BoxConstraints(
+            minHeight: 60,
+          ),
+          padding:
+              const EdgeInsets.symmetric(
+            vertical: 8,
+          ),
+          decoration:
+              BoxDecoration(
+            color: selected
+                ? AppColors.primary
+                    .withOpacity(0.10)
+                : AppColors.surface,
+            borderRadius:
+                BorderRadius.circular(
+              14,
+            ),
+            border: Border.all(
+              color: selected
+                  ? AppColors.primary
+                  : AppColors.divider,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment:
+                MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 19,
+                color: selected
+                    ? AppColors.primary
+                    : AppColors
+                        .textSecondary,
+              ),
+              const SizedBox(
+                height: 3,
+              ),
+              Text(
+                label,
+                style:
+                    AppTextStyles.caption,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _draftOptionField({
+    required _DraftQuestion draft,
     required String label,
     required TextEditingController
         controller,
   }) {
     return TextFormField(
       controller: controller,
-      textInputAction:
-          TextInputAction.next,
       maxLength: 120,
-      style: AppTextStyles.bodyLarge,
-      decoration: _decoration(
+      style:
+          AppTextStyles.bodyLarge,
+      decoration:
+          _decoration(
         label: label,
-        hint: 'اكتب الإجابة...',
+        hint:
+            'اكتب الإجابة...',
       ),
       validator: (value) {
         if (value == null ||
@@ -280,34 +837,43 @@ class _AddQuestionScreenState
     );
   }
 
-  Widget _correctChoice({
+  Widget _draftCorrectChoice({
+    required _DraftQuestion draft,
     required int index,
-    required String text,
   }) {
     final selected =
-        _correctOptionIndex == index;
+        draft.correctOptionIndex ==
+            index;
+
+    final controllers = [
+      draft.option1Controller,
+      draft.option2Controller,
+      draft.option3Controller,
+    ];
 
     return InkWell(
+      onTap: () {
+        setState(() {
+          draft.correctOptionIndex =
+              index;
+        });
+      },
       borderRadius:
           BorderRadius.circular(
         AppRadius.button,
       ),
-      onTap: () {
-        setState(() {
-          _correctOptionIndex = index;
-        });
-      },
       child: Container(
         constraints:
             const BoxConstraints(
-          minHeight: 52,
+          minHeight: 50,
         ),
         padding:
             const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
+          horizontal: 14,
+          vertical: 10,
         ),
-        decoration: BoxDecoration(
+        decoration:
+            BoxDecoration(
           color: selected
               ? AppColors.primary
                   .withOpacity(0.10)
@@ -320,7 +886,6 @@ class _AddQuestionScreenState
             color: selected
                 ? AppColors.primary
                 : AppColors.divider,
-            width: 1.5,
           ),
         ),
         child: Row(
@@ -335,14 +900,20 @@ class _AddQuestionScreenState
                   ? AppColors.primary
                   : AppColors
                       .textSecondary,
-              size: 24,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(
+              width: 10,
+            ),
             Expanded(
               child: Text(
-                text.isEmpty
+                controllers[index]
+                        .text
+                        .trim()
+                        .isEmpty
                     ? 'الخيار ${index + 1}'
-                    : text,
+                    : controllers[index]
+                        .text
+                        .trim(),
                 style:
                     AppTextStyles.bodyMedium,
               ),
@@ -364,24 +935,18 @@ class _AddQuestionScreenState
             style:
                 AppTextStyles.titleMedium,
           ),
-
           const SizedBox(
             height: AppSpacing.x4,
           ),
-
           Text(
-            'اختياري — أضف حتى 5 هاشتاقات ليسهل اكتشاف السؤال.',
+            'اختياري — حتى 5 هاشتاقات للمجموعة.',
             style:
                 AppTextStyles.caption,
           ),
-
           const SizedBox(
             height: AppSpacing.x12,
           ),
-
           Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: TextField(
@@ -393,8 +958,6 @@ class _AddQuestionScreenState
                       TextInputAction.done,
                   onSubmitted: (_) =>
                       _addHashtag(),
-                  style:
-                      AppTextStyles.bodyMedium,
                   decoration:
                       const InputDecoration(
                     labelText:
@@ -405,35 +968,27 @@ class _AddQuestionScreenState
                   ),
                 ),
               ),
-
               const SizedBox(
                 width: AppSpacing.x8,
               ),
-
               SizedBox(
                 width: 48,
                 height: 48,
-                child:
-                    IconButton(
+                child: IconButton(
                   onPressed:
                       _addHashtag,
-                  tooltip:
-                      'إضافة هاشتاق',
-                  icon: const Icon(
+                  icon:
+                      const Icon(
                     Icons.add_rounded,
                   ),
-                  color:
-                      AppColors.textPrimary,
                 ),
               ),
             ],
           ),
-
           if (_hashtags.isNotEmpty) ...[
             const SizedBox(
               height: AppSpacing.x8,
             ),
-
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -441,38 +996,21 @@ class _AddQuestionScreenState
                   _hashtags.map(
                 (hashtag) {
                   return InputChip(
-                    label: Text(
+                    label:
+                        Text(
                       '#$hashtag',
-                      style:
-                          AppTextStyles
-                              .caption,
                     ),
-                    onDeleted:
-                        () =>
-                            _removeHashtag(
+                    onDeleted: () =>
+                        _removeHashtag(
                       hashtag,
-                    ),
-                    deleteIcon:
-                        const Icon(
-                      Icons.close_rounded,
-                      size: 18,
                     ),
                     backgroundColor:
                         AppColors
                             .surfaceVariant,
-                    side: BorderSide(
+                    side:
+                        BorderSide(
                       color: AppColors
-                          .divider
-                          .withOpacity(
-                        0.75,
-                      ),
-                    ),
-                    shape:
-                        RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(
-                        999,
-                      ),
+                          .divider,
                     ),
                   );
                 },
@@ -485,7 +1023,9 @@ class _AddQuestionScreenState
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     final category =
         AppCategories.byId(
       _selectedCategoryId,
@@ -494,12 +1034,12 @@ class _AddQuestionScreenState
     return Scaffold(
       backgroundColor:
           AppColors.background,
-
       appBar: AppBar(
         title:
-            const Text('إضافة سؤال'),
+            const Text(
+          'إنشاء مجموعة',
+        ),
       ),
-
       body: Stack(
         children: [
           LiquidBackground(
@@ -507,17 +1047,16 @@ class _AddQuestionScreenState
                 category.color,
             secondaryOrbColor:
                 category.color
-                    .withOpacity(0.45),
+                    .withOpacity(0.4),
           ),
 
           SafeArea(
             child: Form(
               key: _formKey,
-              child:
-                  SingleChildScrollView(
+              child: SingleChildScrollView(
                 padding:
                     const EdgeInsets.all(
-                  AppSpacing.x24,
+                  AppSpacing.x16,
                 ),
                 child: Column(
                   crossAxisAlignment:
@@ -531,7 +1070,7 @@ class _AddQuestionScreenState
                                 .start,
                         children: [
                           Text(
-                            'أنشئ سؤالًا جديدًا',
+                            'أنشئ مجموعة أسئلة',
                             style:
                                 AppTextStyles
                                     .titleLarge,
@@ -541,7 +1080,7 @@ class _AddQuestionScreenState
                                 AppSpacing.x8,
                           ),
                           Text(
-                            'اكتب سؤالًا واضحًا بثلاث إجابات وحدد الإجابة الصحيحة.',
+                            'أضف من سؤال إلى 5 أسئلة. لكل سؤال نوع مستقل.',
                             style:
                                 AppTextStyles
                                     .bodyMedium,
@@ -556,131 +1095,69 @@ class _AddQuestionScreenState
                     ),
 
                     LiquidGlassContainer(
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment
-                                .stretch,
-                        children: [
-                          TextFormField(
-                            controller:
-                                _questionController,
-                            minLines: 3,
-                            maxLines: 6,
-                            maxLength: 240,
-                            textInputAction:
-                                TextInputAction
-                                    .newline,
-                            style:
-                                AppTextStyles
-                                    .bodyLarge,
-                            decoration:
-                                _decoration(
-                              label:
-                                  'السؤال',
-                              hint:
-                                  'اكتب سؤالك هنا...',
-                            ),
-                            validator:
-                                (value) {
-                              final text =
-                                  value?.trim() ??
-                                      '';
+                      child: TextFormField(
+                        controller:
+                            _packTitleController,
+                        maxLength: 80,
+                        decoration:
+                            _decoration(
+                          label:
+                              'اسم المجموعة',
+                          hint:
+                              'مثال: أسئلة رياضية',
+                        ),
+                        validator: (value) {
+                          return null;
+                        },
+                      ),
+                    ),
 
-                              if (text.isEmpty) {
-                                return 'اكتب السؤال';
-                              }
+                    const SizedBox(
+                      height:
+                          AppSpacing.x16,
+                    ),
 
-                              if (text.length <
-                                  5) {
-                                return 'السؤال قصير جدًا';
-                              }
-
-                              return null;
-                            },
-                          ),
-
-                          const SizedBox(
-                            height:
-                                AppSpacing.x16,
-                          ),
-
+                    LiquidGlassContainer(
+                      child:
                           DropdownButtonFormField<
                               int>(
-                            value:
-                                _selectedCategoryId,
-                            decoration:
-                                const InputDecoration(
-                              labelText:
-                                  'الفئة',
-                            ),
-                            items:
-                                AppCategories
-                                    .all
-                                    .map(
-                              (item) {
-                                return DropdownMenuItem<
-                                    int>(
-                                  value:
-                                      item.id,
-                                  child:
-                                      Text(
-                                    item.name,
-                                  ),
-                                );
-                              },
-                            ).toList(),
-                            onChanged:
-                                _publishing
-                                    ? null
-                                    : (value) {
-                                        if (value ==
-                                            null) {
-                                          return;
-                                        }
+                        value:
+                            _selectedCategoryId,
+                        decoration:
+                            const InputDecoration(
+                          labelText:
+                              'الفئة',
+                        ),
+                        items:
+                            AppCategories
+                                .all
+                                .map(
+                          (item) {
+                            return DropdownMenuItem<
+                                int>(
+                              value:
+                                  item.id,
+                              child:
+                                  Text(
+                                item.name,
+                              ),
+                            );
+                          },
+                        ).toList(),
+                        onChanged:
+                            _publishing
+                                ? null
+                                : (value) {
+                                    if (value ==
+                                        null) {
+                                      return;
+                                    }
 
-                                        setState(() {
-                                          _selectedCategoryId =
-                                              value;
-                                        });
-                                      },
-                          ),
-
-                          const SizedBox(
-                            height:
-                                AppSpacing.x16,
-                          ),
-
-                          _optionField(
-                            label:
-                                'الخيار الأول',
-                            controller:
-                                _option1Controller,
-                          ),
-
-                          const SizedBox(
-                            height:
-                                AppSpacing.x12,
-                          ),
-
-                          _optionField(
-                            label:
-                                'الخيار الثاني',
-                            controller:
-                                _option2Controller,
-                          ),
-
-                          const SizedBox(
-                            height:
-                                AppSpacing.x12,
-                          ),
-
-                          _optionField(
-                            label:
-                                'الخيار الثالث',
-                            controller:
-                                _option3Controller,
-                          ),
-                        ],
+                                    setState(() {
+                                      _selectedCategoryId =
+                                          value;
+                                    });
+                                  },
                       ),
                     ),
 
@@ -696,66 +1173,66 @@ class _AddQuestionScreenState
                           AppSpacing.x16,
                     ),
 
-                    LiquidGlassContainer(
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment
-                                .stretch,
-                        children: [
-                          Text(
-                            'الإجابة الصحيحة',
-                            style:
-                                AppTextStyles
-                                    .titleMedium,
-                          ),
-
-                          const SizedBox(
-                            height:
-                                AppSpacing.x12,
-                          ),
-
-                          _correctChoice(
-                            index: 0,
-                            text:
-                                _option1Controller
-                                    .text,
-                          ),
-
-                          const SizedBox(
-                            height:
-                                AppSpacing.x8,
-                          ),
-
-                          _correctChoice(
-                            index: 1,
-                            text:
-                                _option2Controller
-                                    .text,
-                          ),
-
-                          const SizedBox(
-                            height:
-                                AppSpacing.x8,
-                          ),
-
-                          _correctChoice(
-                            index: 2,
-                            text:
-                                _option3Controller
-                                    .text,
-                          ),
-                        ],
+                    ...List.generate(
+                      _draftQuestions.length,
+                      (index) =>
+                          Padding(
+                        padding:
+                            const EdgeInsets.only(
+                          bottom:
+                              AppSpacing.x12,
+                        ),
+                        child:
+                            _questionEditor(
+                          index:
+                              index,
+                        ),
                       ),
                     ),
 
+                    if (_draftQuestions.length <
+                        maxQuestions)
+                      OutlinedButton.icon(
+                        onPressed:
+                            _publishing
+                                ? null
+                                : _addQuestion,
+                        icon:
+                            const Icon(
+                          Icons.add_rounded,
+                        ),
+                        label:
+                            const Text(
+                          'إضافة سؤال آخر',
+                        ),
+                        style:
+                            OutlinedButton
+                                .styleFrom(
+                          foregroundColor:
+                              AppColors
+                                  .textPrimary,
+                          side:
+                              BorderSide(
+                            color: AppColors
+                                .titaniumBorder
+                                .withOpacity(
+                              0.65,
+                            ),
+                          ),
+                          minimumSize:
+                              const Size
+                                  .fromHeight(
+                            50,
+                          ),
+                        ),
+                      ),
+
                     const SizedBox(
                       height:
-                          AppSpacing.x24,
+                          AppSpacing.x16,
                     ),
 
                     SizedBox(
-                      width:
-                          double.infinity,
                       height: 54,
                       child:
                           ElevatedButton(
@@ -772,24 +1249,11 @@ class _AddQuestionScreenState
                           foregroundColor:
                               AppColors
                                   .onPrimary,
-                          disabledBackgroundColor:
-                              AppColors
-                                  .primary
-                                  .withOpacity(
-                                0.32,
-                              ),
-                          disabledForegroundColor:
-                              AppColors
-                                  .onPrimary
-                                  .withOpacity(
-                                0.50,
-                              ),
                           elevation: 0,
                           shape:
                               RoundedRectangleBorder(
                             borderRadius:
-                                BorderRadius
-                                    .circular(
+                                BorderRadius.circular(
                               AppRadius
                                   .button,
                             ),
@@ -809,8 +1273,8 @@ class _AddQuestionScreenState
                                               .onPrimary,
                                     ),
                                   )
-                                : const Text(
-                                    'نشر السؤال',
+                                : Text(
+                                    'نشر المجموعة (${_draftQuestions.length})',
                                   ),
                       ),
                     ),
@@ -827,5 +1291,31 @@ class _AddQuestionScreenState
         ],
       ),
     );
+  }
+}
+
+class _DraftQuestion {
+  _DraftQuestion({
+    required this.textController,
+    required this.option1Controller,
+    required this.option2Controller,
+    required this.option3Controller,
+    required this.type,
+  });
+
+  final TextEditingController textController;
+  final TextEditingController option1Controller;
+  final TextEditingController option2Controller;
+  final TextEditingController option3Controller;
+
+  QuestionType type;
+
+  int? correctOptionIndex;
+
+  void dispose() {
+    textController.dispose();
+    option1Controller.dispose();
+    option2Controller.dispose();
+    option3Controller.dispose();
   }
 }
