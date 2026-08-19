@@ -26,6 +26,11 @@ class FeedInteractionStore {
       _answeredByUser =
       <String, Set<String>>{};
 
+  // userId -> questionIds
+  final Map<String, Set<String>>
+      _likedQuestionsByUser =
+      <String, Set<String>>{};
+
   String get _currentUserId =>
       AuthSession
           .instance
@@ -58,6 +63,12 @@ class FeedInteractionStore {
 
   Set<String> get _answered {
     return _answeredByUser[
+            _currentUserId] ??=
+        <String>{};
+  }
+
+  Set<String> get _likedQuestions {
+    return _likedQuestionsByUser[
             _currentUserId] ??=
         <String>{};
   }
@@ -159,6 +170,40 @@ class FeedInteractionStore {
     );
   }
 
+  bool isLiked(
+    String questionId,
+  ) {
+    return _likedQuestions.contains(
+      questionId,
+    );
+  }
+
+  bool toggleLike(
+    String questionId,
+  ) {
+    if (_likedQuestions.contains(
+      questionId,
+    )) {
+      _likedQuestions.remove(
+        questionId,
+      );
+
+      return false;
+    }
+
+    _likedQuestions.add(
+      questionId,
+    );
+
+    return true;
+  }
+
+  List<String> likedQuestionIds() {
+    return List.unmodifiable(
+      _likedQuestions,
+    );
+  }
+
   List<String> savedContentIds() {
     return List.unmodifiable(
       _saved,
@@ -195,6 +240,10 @@ class FeedInteractionStore {
     );
 
     _answeredByUser.remove(
+      _currentUserId,
+    );
+
+    _likedQuestionsByUser.remove(
       _currentUserId,
     );
   }
