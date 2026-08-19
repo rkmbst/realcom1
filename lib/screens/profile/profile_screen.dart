@@ -14,7 +14,6 @@ import '../../core/utils/categories.dart';
 import '../../data/mock_online_data.dart';
 import '../../models/feed_card.dart';
 import '../../models/publisher.dart';
-import '../../models/question.dart';
 import '../../models/question_pack.dart';
 import '../../widgets/follow_button.dart';
 import '../../widgets/liquid_background.dart';
@@ -125,10 +124,18 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  List<FeedCard> _buildAllFeedCards() {
+  List<FeedCard> _savedCards() {
+    final savedIds = _feedInteractions.savedContentIds();
+
     final cards = <FeedCard>[];
 
     for (final pack in MockOnlineData.packs) {
+      final cardId = 'pack_card_${pack.id}';
+
+      if (!savedIds.contains(cardId)) {
+        continue;
+      }
+
       if (pack.questions.isEmpty) {
         continue;
       }
@@ -139,7 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
       cards.add(
         FeedCard(
-          id: 'pack_card_${pack.id}',
+          id: cardId,
           publisher: publisher,
           pack: pack,
           question: pack.questions.first,
@@ -148,6 +155,12 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
 
     for (final pack in _packStore.publishedPacks) {
+      final cardId = 'pack_card_${pack.id}';
+
+      if (!savedIds.contains(cardId)) {
+        continue;
+      }
+
       if (pack.questions.isEmpty) {
         continue;
       }
@@ -173,7 +186,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
       cards.add(
         FeedCard(
-          id: 'pack_card_${pack.id}',
+          id: cardId,
           publisher: publisher,
           pack: pack,
           question: pack.questions.first,
@@ -181,17 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       );
     }
 
-    return cards;
-  }
-
-  List<FeedCard> _savedCards() {
-    final savedIds = _feedInteractions.savedContentIds();
-
-    final allCards = _buildAllFeedCards();
-
-    return allCards
-        .where((card) => savedIds.contains(card.id))
-        .toList(growable: false);
+    return List.unmodifiable(cards);
   }
 
   @override
