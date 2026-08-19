@@ -4,6 +4,7 @@ import '../../core/auth/auth_session.dart';
 import '../../core/online/feed_interaction_store.dart';
 import '../../core/online/question_store.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_physics.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/categories.dart';
 import '../../data/mock_online_data.dart';
@@ -587,7 +588,7 @@ class _OnlineFeedScreenState
               scrollDirection:
                   Axis.vertical,
               physics:
-                  const PageScrollPhysics(),
+                  const VerticalFeedPhysics(),
               itemCount:
                   _cards.length,
               onPageChanged:
