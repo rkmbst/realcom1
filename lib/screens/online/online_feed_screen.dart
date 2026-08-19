@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_physics.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/categories.dart';
+import '../../core/utils/haptics.dart';
 import '../../data/mock_online_data.dart';
 import '../../models/feed_card.dart';
 import '../../models/publisher.dart';
@@ -180,6 +181,8 @@ class _OnlineFeedScreenState
       card.id,
     );
 
+    Haptics.light();
+
     _nextPage();
   }
 
@@ -190,17 +193,54 @@ class _OnlineFeedScreenState
       card.id,
     );
 
+    Haptics.light();
+
     _nextPage();
   }
 
   void _toggleSave(
     FeedCard card,
   ) {
+    final wasSaved =
+        _interactions.isSaved(
+      card.id,
+    );
+
     setState(() {
       _interactions.toggleSave(
         card.id,
       );
     });
+
+    Haptics.medium();
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          duration: const Duration(
+            milliseconds: 1200,
+          ),
+          backgroundColor:
+              AppColors.surface,
+          content: Text(
+            wasSaved
+                ? 'تم الحذف من المحفوظات'
+                : 'تم الحفظ للإجابة لاحقًا',
+            style:
+                AppTextStyles.bodyMedium,
+          ),
+          behavior:
+              SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(
+              14,
+            ),
+          ),
+        ),
+      );
   }
 
   Future<void> _openQuestion(
@@ -379,28 +419,50 @@ class _OnlineFeedScreenState
                   ),
                 ),
 
-                IconButton(
-                  tooltip:
-                      saved
-                          ? 'حذف من المحفوظات'
-                          : 'سأجيب لاحقًا',
-                  onPressed: () =>
-                      _toggleSave(
-                    card,
+                // Save button with visual state
+                AnimatedContainer(
+                  duration:
+                      const Duration(
+                    milliseconds: 250,
                   ),
-                  icon: Icon(
-                    saved
-                        ? Icons
-                            .bookmark_rounded
-                        : Icons
-                            .bookmark_border_rounded,
+                  curve:
+                      Curves.easeOutCubic,
+                  decoration:
+                      BoxDecoration(
+                    color: saved
+                        ? AppColors
+                            .secondary
+                            .withOpacity(
+                          0.12,
+                        )
+                        : Colors
+                            .transparent,
+                    borderRadius:
+                        BorderRadius.circular(
+                      12,
+                    ),
                   ),
-                  color:
+                  child: IconButton(
+                    tooltip: saved
+                        ? 'حذف من المحفوظات'
+                        : 'سأجيب لاحقًا',
+                    onPressed: () =>
+                        _toggleSave(
+                      card,
+                    ),
+                    icon: Icon(
                       saved
-                          ? AppColors
-                              .secondary
-                          : AppColors
-                              .textPrimary,
+                          ? Icons
+                              .bookmark_rounded
+                          : Icons
+                              .bookmark_border_rounded,
+                    ),
+                    color: saved
+                        ? AppColors
+                            .secondary
+                        : AppColors
+                            .textPrimary,
+                  ),
                 ),
               ],
             ),
@@ -523,10 +585,30 @@ class _OnlineFeedScreenState
             height: 12,
           ),
 
-          Text(
-            '${_currentIndex + 1} / ${_cards.length}',
-            style:
-                AppTextStyles.caption,
+          Row(
+            mainAxisAlignment:
+                MainAxisAlignment
+                    .center,
+            children: [
+              Text(
+                '${_currentIndex + 1} / ${_cards.length}',
+                style:
+                    AppTextStyles.caption,
+              ),
+              if (saved) ...[
+                const SizedBox(
+                  width: 8,
+                ),
+                const Icon(
+                  Icons
+                      .bookmark_rounded,
+                  size: 14,
+                  color:
+                      AppColors
+                          .secondary,
+                ),
+              ],
+            ],
           ),
         ],
       ),
