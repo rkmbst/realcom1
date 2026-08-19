@@ -1,6 +1,7 @@
-hereimport 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../core/online/feed_interaction_store.dart';
+import '../../core/social/comment_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/categories.dart';
@@ -35,6 +36,9 @@ class _OnlineQuestionScreenState
   final _feedInteractions =
       FeedInteractionStore.instance;
 
+  final _commentStore =
+      CommentStore.instance;
+
   late final List<QuestionOption> _options;
 
   String? _selectedOptionId;
@@ -62,6 +66,147 @@ class _OnlineQuestionScreenState
     });
 
     Haptics.light();
+  }
+
+  void _openComments() {
+    final controller = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final comments = _commentStore.forQuestion(
+              widget.question.id,
+            );
+
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.65,
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'التعليقات',
+                            style: AppTextStyles.titleMedium,
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${comments.length}',
+                            style: AppTextStyles.caption,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: comments.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'لا توجد تعليقات بعد.\nكن أول من يشارك رأيه.',
+                                  textAlign: TextAlign.center,
+                                ),
+                              )
+                            : ListView.separated(
+                                itemCount: comments.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 10),
+                                itemBuilder: (_, index) {
+                                  final comment = comments[index];
+
+                                  return LiquidGlassContainer(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          comment.authorName,
+                                          style: AppTextStyles.username,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          comment.text,
+                                          style: AppTextStyles.bodyMedium,
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: controller,
+                              maxLength: 500,
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: (_) {
+                                _submitComment(
+                                  controller,
+                                  setSheetState,
+                                );
+                              },
+                              decoration: const InputDecoration(
+                                hintText: 'اكتب تعليقك...',
+                                counterText: '',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () {
+                              _submitComment(
+                                controller,
+                                setSheetState,
+                              );
+                            },
+                            icon: const Icon(Icons.send_rounded),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(controller.dispose);
+  }
+
+  void _submitComment(
+    TextEditingController controller,
+    StateSetter setSheetState,
+  ) {
+    final text = controller.text.trim();
+
+    if (text.isEmpty) {
+      return;
+    }
+
+    _commentStore.add(
+      questionId: widget.question.id,
+      text: text,
+    );
+
+    controller.clear();
+
+    Haptics.light();
+
+    setSheetState(() {});
   }
 
   void _confirm() {
@@ -95,8 +240,11 @@ class _OnlineQuestionScreenState
       widget.question.categoryId,
     );
 
-    final isLiked =
-        _feedInteractions.isLiked(
+    final isLiked = _feedInteractions.isLiked(
+      widget.question.id,
+    );
+
+    final commentCount = _commentStore.countForQuestion(
       widget.question.id,
     );
 
@@ -220,6 +368,40 @@ class _OnlineQuestionScreenState
                               isLiked
                                   ? 'أعجبني'
                                   : 'إعجاب',
+                              style: AppTextStyles.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Center(
+                    child: InkWell(
+                      onTap: _openComments,
+                      borderRadius: BorderRadius.circular(999),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: AppColors.divider,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.chat_bubble_outline_rounded,
+                              size: 21,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '$commentCount تعليقات',
                               style: AppTextStyles.bodyMedium,
                             ),
                           ],
