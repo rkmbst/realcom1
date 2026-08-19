@@ -28,105 +28,106 @@ class _SwipeableCardState
     extends State<SwipeableCard>
     with SingleTickerProviderStateMixin {
   double _dragX = 0;
+  double _dragY = 0;
 
-  late final AnimationController
-      _controller;
+  bool _horizontalGesture = false;
+  bool _gestureLocked = false;
+  bool _isAnimating = false;
+
+  late final AnimationController _controller;
 
   Animation<double>? _animation;
-
   VoidCallback? _pendingCallback;
-
-  bool _isAnimating = false;
 
   @override
   void initState() {
     super.initState();
 
-    _controller =
-        AnimationController(
+    _controller = AnimationController(
       vsync: this,
-    )
-          ..addListener(() {
-            final animation =
-                _animation;
+    )..addListener(() {
+        final animation = _animation;
 
-            if (animation == null ||
-                !mounted) {
-              return;
-            }
+        if (animation == null || !mounted) {
+          return;
+        }
 
-            setState(() {
-              _dragX =
-                  animation.value;
-            });
-          })
-          ..addStatusListener(
-            (status) {
-              if (status !=
-                      AnimationStatus
-                          .completed ||
-                  !mounted) {
-                return;
-              }
-
-              final callback =
-                  _pendingCallback;
-
-              _pendingCallback =
-                  null;
-
-              setState(() {
-                _isAnimating = false;
-                _dragX = 0;
-              });
-
-              callback?.call();
-            },
-          );
+        setState(() {
+          _dragX = animation.value;
+        });
+      });
   }
 
-  void _onHorizontalDragUpdate(
-    DragUpdateDetails details,
-  ) {
+  void _onPanStart(DragStartDetails details) {
     if (_isAnimating) {
       return;
     }
 
-    setState(() {
-      _dragX += details.delta.dx;
-    });
+    _gestureLocked = false;
+    _horizontalGesture = false;
+
+    _dragY = 0;
   }
 
-  void _onHorizontalDragEnd(
-    DragEndDetails details,
-  ) {
-    if (_isAnimating) {
+  void _onPanUpdate(DragUpdateDetails details) {
+    if (_isAnimating || _gestureLocked) {
+      return;
+    }
+
+    _dragY += details.delta.dy;
+    _dragX += details.delta.dx;
+
+    final absX = _dragX.abs();
+    final absY = _dragY.abs();
+
+    if (absX < 6 && absY < 6) {
+      return;
+    }
+
+    if (absX > absY * 1.15) {
+      _horizontalGesture = true;
+      _gestureLocked = true;
+    } else if (absY > absX * 1.15) {
+      // Vertical gesture belongs to the parent
+      // PageView. Do not move this card.
+      _dragX = 0;
+      _dragY = 0;
+      _horizontalGesture = false;
+      _gestureLocked = true;
+      return;
+    }
+
+    if (!_horizontalGesture) {
+      return;
+    }
+
+    setState(() {});
+  }
+
+  void _onPanEnd(DragEndDetails details) {
+    if (_isAnimating ||
+        !_horizontalGesture) {
+      _resetGestureState();
       return;
     }
 
     final velocity =
-        details.velocity
-            .pixelsPerSecond
-            .dx;
+        details.velocity.pixelsPerSecond.dx;
 
-    if (_dragX >
-            widget.threshold ||
+    if (_dragX > widget.threshold ||
         velocity > 800) {
       _animateOut(
         direction: 1,
-        callback:
-            widget.onSwipeRight,
+        callback: widget.onSwipeRight,
       );
       return;
     }
 
-    if (_dragX <
-            -widget.threshold ||
+    if (_dragX < -widget.threshold ||
         velocity < -800) {
       _animateOut(
         direction: -1,
-        callback:
-            widget.onSwipeLeft,
+        callback: widget.onSwipeLeft,
       );
       return;
     }
@@ -139,71 +140,91 @@ class _SwipeableCardState
     required VoidCallback callback,
   }) {
     _isAnimating = true;
-    _pendingCallback =
-        callback;
+    _pendingCallback = callback;
 
-    final screenWidth =
-        MediaQuery.of(context)
-            .size
-            .width;
+    final width =
+        MediaQuery.of(context).size.width;
 
     final target =
-        direction *
-            screenWidth *
-            1.15;
+        direction * width * 1.15;
 
-    _animation =
-        Tween<double>(
+    _animation = Tween<double>(
       begin: _dragX,
       end: target,
     ).animate(
       CurvedAnimation(
-        parent:
-            _controller,
-        curve:
-            Curves.easeOutCubic,
+        parent: _controller,
+        curve: AppMotion.standardCurve,
       ),
     );
 
     _controller
-      ..duration =
-          const Duration(
-        milliseconds: 220,
-      )
+      ..duration = AppMotion.standard
       ..forward(from: 0);
+
+    _controller.addStatusListener(
+      _handleAnimationStatus,
+    );
   }
 
   void _animateBack() {
     _isAnimating = true;
     _pendingCallback = null;
 
-    _animation =
-        Tween<double>(
+    _animation = Tween<double>(
       begin: _dragX,
       end: 0,
     ).animate(
       CurvedAnimation(
-        parent:
-            _controller,
-        curve:
-            Curves.easeOutCubic,
+        parent: _controller,
+        curve: AppMotion.standardCurve,
       ),
     );
 
     _controller
-      ..duration =
-          AppMotion.standard
-      ..forward(from: 0)
-      ..whenComplete(() {
-        if (!mounted) {
-          return;
-        }
+      ..duration = AppMotion.standard
+      ..forward(from: 0);
 
-        setState(() {
-          _isAnimating = false;
-          _dragX = 0;
-        });
-      });
+    _controller.addStatusListener(
+      _handleAnimationStatus,
+    );
+  }
+
+  void _handleAnimationStatus(
+    AnimationStatus status,
+  ) {
+    if (status != AnimationStatus.completed) {
+      return;
+    }
+
+    _controller.removeStatusListener(
+      _handleAnimationStatus,
+    );
+
+    final callback = _pendingCallback;
+
+    _pendingCallback = null;
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _dragX = 0;
+      _dragY = 0;
+      _horizontalGesture = false;
+      _gestureLocked = false;
+      _isAnimating = false;
+    });
+
+    callback?.call();
+  }
+
+  void _resetGestureState() {
+    _dragX = 0;
+    _dragY = 0;
+    _horizontalGesture = false;
+    _gestureLocked = false;
   }
 
   @override
@@ -213,36 +234,26 @@ class _SwipeableCardState
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
+    final width =
+        MediaQuery.of(context).size.width;
+
     final rotation =
-        (_dragX /
-                MediaQuery.of(context)
-                    .size
-                    .width) *
-            0.15;
+        (_dragX / width) * 0.15;
 
     final rightOpacity =
-        (_dragX / 120)
-            .clamp(0.0, 1.0);
+        (_dragX / 120).clamp(0.0, 1.0);
 
     final leftOpacity =
-        (-_dragX / 120)
-            .clamp(0.0, 1.0);
+        (-_dragX / 120).clamp(0.0, 1.0);
 
     return GestureDetector(
-      behavior:
-          HitTestBehavior.opaque,
-      onHorizontalDragUpdate:
-          _onHorizontalDragUpdate,
-      onHorizontalDragEnd:
-          _onHorizontalDragEnd,
+      behavior: HitTestBehavior.opaque,
+      onPanStart: _onPanStart,
+      onPanUpdate: _onPanUpdate,
+      onPanEnd: _onPanEnd,
       child: Transform.translate(
-        offset: Offset(
-          _dragX,
-          0,
-        ),
+        offset: Offset(_dragX, 0),
         child: Transform.rotate(
           angle: rotation,
           child: Stack(
@@ -254,15 +265,10 @@ class _SwipeableCardState
                 left: 20,
                 child: IgnorePointer(
                   child: Opacity(
-                    opacity:
-                        rightOpacity,
-                    child:
-                        _Stamp(
-                      label:
-                          'مهتم',
-                      color:
-                          AppColors
-                              .success,
+                    opacity: rightOpacity,
+                    child: _Stamp(
+                      label: 'مهتم',
+                      color: AppColors.success,
                     ),
                   ),
                 ),
@@ -273,15 +279,10 @@ class _SwipeableCardState
                 right: 20,
                 child: IgnorePointer(
                   child: Opacity(
-                    opacity:
-                        leftOpacity,
-                    child:
-                        _Stamp(
-                      label:
-                          'غير مهتم',
-                      color:
-                          AppColors
-                              .error,
+                    opacity: leftOpacity,
+                    child: _Stamp(
+                      label: 'غير مهتم',
+                      color: AppColors.error,
                     ),
                   ),
                 ),
@@ -304,33 +305,26 @@ class _Stamp extends StatelessWidget {
   final Color color;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: 12,
         vertical: 8,
       ),
-      decoration:
-          BoxDecoration(
-        color:
-            color.withOpacity(0.14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.14),
         borderRadius:
             BorderRadius.circular(
           AppRadius.pill,
         ),
         border: Border.all(
-          color:
-              color.withOpacity(0.75),
+          color: color.withOpacity(0.75),
         ),
       ),
       child: Text(
         label,
         style:
-            AppTextStyles.button
-                .copyWith(
+            AppTextStyles.button.copyWith(
           color: color,
         ),
       ),
