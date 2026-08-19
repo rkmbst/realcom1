@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/auth/auth_session.dart';
 import '../../core/online/feed_interaction_store.dart';
-import '../../core/online/question_store.dart';
+import '../../core/online/question_pack_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_physics.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -17,7 +17,7 @@ import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
 import '../../widgets/swipeable_card.dart';
 import '../profile/profile_screen.dart';
-import 'online_question_screen.dart';
+import 'pack_question_flow_screen.dart';
 import 'publisher_wheel_screen.dart';
 
 class OnlineFeedScreen extends StatefulWidget {
@@ -32,8 +32,8 @@ class OnlineFeedScreen extends StatefulWidget {
 
 class _OnlineFeedScreenState
     extends State<OnlineFeedScreen> {
-  final _questionStore =
-      QuestionStore.instance;
+  final _packStore =
+      QuestionPackStore.instance;
 
   final _session =
       AuthSession.instance;
@@ -65,16 +65,80 @@ class _OnlineFeedScreenState
   }
 
   void _rebuildFeed() {
-    final mockCards =
-        MockOnlineData.buildFeedCards();
+    final cards = <FeedCard>[];
 
-    final userCards =
-        _buildUserQuestionCards();
+    // Mock packs.
+    for (final pack
+        in MockOnlineData.packs) {
+      if (pack.questions.isEmpty) {
+        continue;
+      }
 
-    _cards = [
-      ...userCards,
-      ...mockCards,
-    ];
+      final publisher =
+          MockOnlineData.publishers
+              .firstWhere(
+        (item) =>
+            item.id ==
+            pack.publisherId,
+      );
+
+      cards.add(
+        FeedCard(
+          id:
+              'pack_card_${pack.id}',
+          publisher:
+              publisher,
+          pack:
+              pack,
+          question:
+              pack.questions.first,
+        ),
+      );
+    }
+
+    // User-created packs.
+    for (final pack
+        in _packStore.publishedPacks) {
+      if (pack.questions.isEmpty) {
+        continue;
+      }
+
+      final author =
+          _session.findUser(
+        pack.publisherId,
+      );
+
+      if (author == null) {
+        continue;
+      }
+
+      final category =
+          AppCategories.byId(
+        pack.questions.first.categoryId,
+      );
+
+      final publisher = Publisher(
+        id: author.id,
+        name: author.displayName,
+        handle: '@${author.username}',
+        accentColor: category.color,
+      );
+
+      cards.add(
+        FeedCard(
+          id:
+              'pack_card_${pack.id}',
+          publisher:
+              publisher,
+          pack:
+              pack,
+          question:
+              pack.questions.first,
+        ),
+      );
+    }
+
+    _cards = cards;
 
     if (_cards.isEmpty) {
       _currentIndex = 0;
@@ -86,72 +150,6 @@ class _OnlineFeedScreenState
       _currentIndex =
           _cards.length - 1;
     }
-  }
-
-  List<FeedCard>
-      _buildUserQuestionCards() {
-    final questions =
-        _questionStore
-            .publishedQuestions;
-
-    final cards =
-        <FeedCard>[];
-
-    for (final question
-        in questions) {
-      final authorId =
-          question.authorId;
-
-      if (authorId == null) {
-        continue;
-      }
-
-      final author =
-          _session.findUser(
-        authorId,
-      );
-
-      if (author == null) {
-        continue;
-      }
-
-      final category =
-          AppCategories.byId(
-        question.categoryId,
-      );
-
-      final publisher = Publisher(
-        id: author.id,
-        name: author.displayName,
-        handle: '@${author.username}',
-        accentColor: category.color,
-      );
-
-      final pack = QuestionPack(
-        id: 'user_pack_${author.id}',
-        publisherId: author.id,
-        title:
-            'أسئلة ${author.displayName}',
-        questions: [
-          question,
-        ],
-      );
-
-      cards.add(
-        FeedCard(
-          id:
-              'user_card_${question.id}',
-          publisher:
-              publisher,
-          pack:
-              pack,
-          question:
-              question,
-        ),
-      );
-    }
-
-    return cards;
   }
 
   void _nextPage() {
@@ -254,18 +252,19 @@ class _OnlineFeedScreenState
       context,
       MaterialPageRoute(
         builder: (_) =>
-            OnlineQuestionScreen(
-          question:
-              card.question,
+            PackQuestionFlowScreen(
           publisher:
               card.publisher,
-          isLastQuestion: true,
+          pack:
+              card.pack,
         ),
       ),
     );
 
     if (mounted) {
-      setState(() {});
+      setState(() {
+        _rebuildFeed();
+      });
     }
   }
 
