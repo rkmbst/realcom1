@@ -26,6 +26,17 @@ class QuestionStore {
     );
   }
 
+  Question? find(String questionId) {
+    for (final question
+        in _publishedQuestions) {
+      if (question.id == questionId) {
+        return question;
+      }
+    }
+
+    return null;
+  }
+
   List<Question> byAuthor(
     String authorId,
   ) {
