@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+hereimport 'package:flutter/material.dart';
 
 import '../../core/online/feed_interaction_store.dart';
 import '../../core/theme/app_colors.dart';
@@ -54,6 +54,16 @@ class _OnlineQuestionScreenState
     ).color;
   }
 
+  void _toggleLike() {
+    setState(() {
+      _feedInteractions.toggleLike(
+        widget.question.id,
+      );
+    });
+
+    Haptics.light();
+  }
+
   void _confirm() {
     final selectedOptionId = _selectedOptionId;
 
@@ -83,6 +93,11 @@ class _OnlineQuestionScreenState
   Widget build(BuildContext context) {
     final category = AppCategories.byId(
       widget.question.categoryId,
+    );
+
+    final isLiked =
+        _feedInteractions.isLiked(
+      widget.question.id,
     );
 
     return Scaffold(
@@ -166,6 +181,51 @@ class _OnlineQuestionScreenState
                     widget.question.text,
                     textAlign: TextAlign.center,
                     style: AppTextStyles.displayLarge,
+                  ),
+                  const SizedBox(height: 18),
+                  Center(
+                    child: InkWell(
+                      onTap: _toggleLike,
+                      borderRadius: BorderRadius.circular(999),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isLiked
+                              ? AppColors.like.withOpacity(0.12)
+                              : AppColors.surface,
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: isLiked
+                                ? AppColors.like.withOpacity(0.55)
+                                : AppColors.divider,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isLiked
+                                  ? Icons.favorite_rounded
+                                  : Icons.favorite_border_rounded,
+                              size: 22,
+                              color: isLiked
+                                  ? AppColors.like
+                                  : AppColors.textSecondary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              isLiked
+                                  ? 'أعجبني'
+                                  : 'إعجاب',
+                              style: AppTextStyles.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 32),
                   ..._options.map(
