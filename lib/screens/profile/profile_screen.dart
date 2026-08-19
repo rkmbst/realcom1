@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/auth/auth_session.dart';
 import '../../core/auth/user_directory.dart';
 import '../../core/online/feed_interaction_store.dart';
+import '../../core/online/question_pack_store.dart';
 import '../../core/online/question_store.dart';
 import '../../core/social/follow_store.dart';
 import '../../core/theme/app_colors.dart';
@@ -22,7 +23,7 @@ import '../../widgets/notification_bell.dart';
 import '../../widgets/user_avatar.dart';
 import '../auth/account_switch_screen.dart';
 import '../online/add_question_screen.dart';
-import '../online/online_question_screen.dart';
+import '../online/pack_question_flow_screen.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -43,6 +44,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   final _directory = UserDirectory.instance;
   final _followStore = FollowStore.instance;
   final _questionStore = QuestionStore.instance;
+  final _packStore = QuestionPackStore.instance;
   final _feedInteractions = FeedInteractionStore.instance;
 
   late final TabController _tabController;
@@ -93,16 +95,13 @@ class _ProfileScreenState extends State<ProfileScreen>
     setState(() {});
   }
 
-  Future<void> _openQuestion(Question question) async {
-    if (question.authorId == null) {
-      return;
-    }
-
+  Future<void> _openPack(QuestionPack pack) async {
     final publisherUser = _directory.find(
-      question.authorId!,
+      pack.publisherId,
     );
 
-    if (publisherUser == null) {
+    if (publisherUser == null ||
+        pack.questions.isEmpty) {
       return;
     }
 
@@ -111,42 +110,58 @@ class _ProfileScreenState extends State<ProfileScreen>
       accentColor: AppColors.primary,
     );
 
-    if (!mounted) return;
-
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => OnlineQuestionScreen(
-          question: question,
+        builder: (_) => PackQuestionFlowScreen(
           publisher: publisher,
-          isLastQuestion: false,
+          pack: pack,
         ),
       ),
     );
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   List<FeedCard> _buildAllFeedCards() {
-    final cards = <FeedCard>[
-      ...MockOnlineData.buildFeedCards(),
-    ];
+    final cards = <FeedCard>[];
 
-    final published = _questionStore.publishedQuestions;
-
-    for (final question in published) {
-      final authorId = question.authorId;
-
-      if (authorId == null) {
+    for (final pack in MockOnlineData.packs) {
+      if (pack.questions.isEmpty) {
         continue;
       }
 
-      final author = _session.findUser(authorId);
+      final publisher = MockOnlineData.publishers.firstWhere(
+        (item) => item.id == pack.publisherId,
+      );
+
+      cards.add(
+        FeedCard(
+          id: 'pack_card_${pack.id}',
+          publisher: publisher,
+          pack: pack,
+          question: pack.questions.first,
+        ),
+      );
+    }
+
+    for (final pack in _packStore.publishedPacks) {
+      if (pack.questions.isEmpty) {
+        continue;
+      }
+
+      final author = _directory.find(
+        pack.publisherId,
+      );
 
       if (author == null) {
         continue;
       }
 
       final category = AppCategories.byId(
-        question.categoryId,
+        pack.questions.first.categoryId,
       );
 
       final publisher = Publisher(
@@ -156,19 +171,12 @@ class _ProfileScreenState extends State<ProfileScreen>
         accentColor: category.color,
       );
 
-      final pack = QuestionPack(
-        id: 'saved_pack_${author.id}',
-        publisherId: author.id,
-        title: 'أسئلة ${author.displayName}',
-        questions: [question],
-      );
-
       cards.add(
         FeedCard(
-          id: 'user_card_${question.id}',
+          id: 'pack_card_${pack.id}',
           publisher: publisher,
           pack: pack,
-          question: question,
+          question: pack.questions.first,
         ),
       );
     }
@@ -212,10 +220,14 @@ class _ProfileScreenState extends State<ProfileScreen>
     final isOwnProfile = viewedUser.id == currentUser.id;
     final isFollowing = _followStore.isFollowing(viewedUser.id);
     final publishedQuestions = _questionStore.byAuthor(viewedUser.id);
+    final publishedPacks = _packStore.byPublisher(viewedUser.id);
     final followerCount = viewedUser.followersCount +
         _followStore.followerCount(viewedUser.id);
-    final questionCount =
-        viewedUser.questionCount + publishedQuestions.length;
+    final questionCount = viewedUser.questionCount +
+        publishedPacks.fold<int>(
+          0,
+          (sum, pack) => sum + pack.questions.length,
+        );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -347,7 +359,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         labelColor: AppColors.textPrimary,
                         unselectedLabelColor: AppColors.textSecondary,
                         tabs: const [
-                          Tab(text: 'الأسئلة'),
+                          Tab(text: 'المجموعات'),
                           Tab(text: 'لاحقًا'),
                           Tab(text: 'الإعجابات'),
                         ],
@@ -359,13 +371,13 @@ class _ProfileScreenState extends State<ProfileScreen>
               body: TabBarView(
                 controller: _tabController,
                 children: [
-                  _PublishedQuestions(
-                    questions: publishedQuestions,
-                    onTap: _openQuestion,
+                  _PublishedPacks(
+                    packs: publishedPacks,
+                    onTap: _openPack,
                   ),
                   _SavedQuestions(
                     cards: _savedCards(),
-                    onTap: _openQuestion,
+                    onTap: _openPack,
                   ),
                   const _ProfileEmptyState(
                     text: 'لا توجد إعجابات بعد',
@@ -380,34 +392,36 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 }
 
-class _PublishedQuestions extends StatelessWidget {
-  const _PublishedQuestions({
-    required this.questions,
+class _PublishedPacks extends StatelessWidget {
+  const _PublishedPacks({
+    required this.packs,
     required this.onTap,
   });
 
-  final List<Question> questions;
-  final ValueChanged<Question> onTap;
+  final List<QuestionPack> packs;
+  final ValueChanged<QuestionPack> onTap;
 
   @override
   Widget build(BuildContext context) {
-    if (questions.isEmpty) {
+    if (packs.isEmpty) {
       return const _ProfileEmptyState(
-        text: 'لا توجد أسئلة منشورة بعد.',
+        text: 'لا توجد مجموعات منشورة بعد.',
       );
     }
 
     return ListView.separated(
       padding: const EdgeInsets.all(AppSpacing.x16),
-      itemCount: questions.length,
+      itemCount: packs.length,
       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.x12),
       itemBuilder: (context, index) {
-        final question = questions[index];
-        final category = AppCategories.byId(question.categoryId);
+        final pack = packs[index];
+        final category = AppCategories.byId(
+          pack.questions.first.categoryId,
+        );
 
         return InkWell(
+          onTap: () => onTap(pack),
           borderRadius: BorderRadius.circular(18),
-          onTap: () => onTap(question),
           child: LiquidGlassContainer(
             borderRadius: 18,
             padding: const EdgeInsets.all(AppSpacing.x16),
@@ -433,6 +447,11 @@ class _PublishedQuestions extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
+                    Text(
+                      '${pack.questions.length} أسئلة',
+                      style: AppTextStyles.caption,
+                    ),
+                    const SizedBox(width: 6),
                     const Icon(
                       Icons.chevron_left_rounded,
                       color: AppColors.textSecondary,
@@ -441,26 +460,16 @@ class _PublishedQuestions extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.x12),
                 Text(
-                  question.text,
-                  style: AppTextStyles.bodyLarge,
+                  pack.title,
+                  style: AppTextStyles.titleMedium,
                 ),
-                if (question.hashtags.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.x12),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: question.hashtags
-                        .map(
-                          (hashtag) => Text(
-                            '#$hashtag',
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ],
+                const SizedBox(height: AppSpacing.x8),
+                Text(
+                  pack.questions.first.text,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodyMedium,
+                ),
               ],
             ),
           ),
@@ -477,7 +486,7 @@ class _SavedQuestions extends StatelessWidget {
   });
 
   final List<FeedCard> cards;
-  final ValueChanged<Question> onTap;
+  final ValueChanged<QuestionPack> onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -497,7 +506,7 @@ class _SavedQuestions extends StatelessWidget {
 
         return InkWell(
           borderRadius: BorderRadius.circular(18),
-          onTap: () => onTap(card.question),
+          onTap: () => onTap(card.pack),
           child: LiquidGlassContainer(
             borderRadius: 18,
             padding: const EdgeInsets.all(AppSpacing.x16),
