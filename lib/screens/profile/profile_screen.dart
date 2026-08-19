@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/auth/auth_session.dart';
 import '../../core/auth/user_directory.dart';
+import '../../core/online/feed_interaction_store.dart';
 import '../../core/online/question_store.dart';
 import '../../core/social/follow_store.dart';
 import '../../core/theme/app_colors.dart';
@@ -9,8 +10,11 @@ import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/categories.dart';
+import '../../data/mock_online_data.dart';
+import '../../models/feed_card.dart';
 import '../../models/publisher.dart';
 import '../../models/question.dart';
+import '../../models/question_pack.dart';
 import '../../widgets/follow_button.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
@@ -39,6 +43,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   final _directory = UserDirectory.instance;
   final _followStore = FollowStore.instance;
   final _questionStore = QuestionStore.instance;
+  final _feedInteractions = FeedInteractionStore.instance;
 
   late final TabController _tabController;
 
@@ -46,7 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 2,
+      length: 3,
       vsync: this,
     );
   }
@@ -101,8 +106,6 @@ class _ProfileScreenState extends State<ProfileScreen>
       return;
     }
 
-    // Convert the user directory model into a lightweight
-    // publisher representation for the question screen.
     final publisher = Publisher.fromUser(
       publisherUser,
       accentColor: AppColors.primary,
@@ -120,6 +123,67 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
       ),
     );
+  }
+
+  List<FeedCard> _buildAllFeedCards() {
+    final cards = <FeedCard>[
+      ...MockOnlineData.buildFeedCards(),
+    ];
+
+    final published = _questionStore.publishedQuestions;
+
+    for (final question in published) {
+      final authorId = question.authorId;
+
+      if (authorId == null) {
+        continue;
+      }
+
+      final author = _session.findUser(authorId);
+
+      if (author == null) {
+        continue;
+      }
+
+      final category = AppCategories.byId(
+        question.categoryId,
+      );
+
+      final publisher = Publisher(
+        id: author.id,
+        name: author.displayName,
+        handle: '@${author.username}',
+        accentColor: category.color,
+      );
+
+      final pack = QuestionPack(
+        id: 'saved_pack_${author.id}',
+        publisherId: author.id,
+        title: 'أسئلة ${author.displayName}',
+        questions: [question],
+      );
+
+      cards.add(
+        FeedCard(
+          id: 'user_card_${question.id}',
+          publisher: publisher,
+          pack: pack,
+          question: question,
+        ),
+      );
+    }
+
+    return cards;
+  }
+
+  List<FeedCard> _savedCards() {
+    final savedIds = _feedInteractions.savedContentIds();
+
+    final allCards = _buildAllFeedCards();
+
+    return allCards
+        .where((card) => savedIds.contains(card.id))
+        .toList(growable: false);
   }
 
   @override
@@ -284,6 +348,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         unselectedLabelColor: AppColors.textSecondary,
                         tabs: const [
                           Tab(text: 'الأسئلة'),
+                          Tab(text: 'لاحقًا'),
                           Tab(text: 'الإعجابات'),
                         ],
                       ),
@@ -296,6 +361,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                 children: [
                   _PublishedQuestions(
                     questions: publishedQuestions,
+                    onTap: _openQuestion,
+                  ),
+                  _SavedQuestions(
+                    cards: _savedCards(),
                     onTap: _openQuestion,
                   ),
                   const _ProfileEmptyState(
@@ -387,6 +456,95 @@ class _PublishedQuestions extends StatelessWidget {
                             style: AppTextStyles.caption.copyWith(
                               color: AppColors.textSecondary,
                             ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SavedQuestions extends StatelessWidget {
+  const _SavedQuestions({
+    required this.cards,
+    required this.onTap,
+  });
+
+  final List<FeedCard> cards;
+  final ValueChanged<Question> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (cards.isEmpty) {
+      return const _ProfileEmptyState(
+        text: 'لا توجد أسئلة محفوظة بعد.\nاضغط 🔖 على أي سؤال لتجيب عنه لاحقًا.',
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(AppSpacing.x16),
+      itemCount: cards.length,
+      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.x12),
+      itemBuilder: (context, index) {
+        final card = cards[index];
+        final category = AppCategories.byId(card.question.categoryId);
+
+        return InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => onTap(card.question),
+          child: LiquidGlassContainer(
+            borderRadius: 18,
+            padding: const EdgeInsets.all(AppSpacing.x16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: category.color.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        category.name,
+                        style: AppTextStyles.caption.copyWith(
+                          color: category.color,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    const Icon(
+                      Icons.bookmark_rounded,
+                      size: 20,
+                      color: AppColors.secondary,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.x12),
+                Text(
+                  card.question.text,
+                  style: AppTextStyles.bodyLarge,
+                ),
+                if (card.question.hashtags.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.x12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: card.question.hashtags
+                        .map(
+                          (hashtag) => Text(
+                            '#$hashtag',
+                            style: AppTextStyles.caption,
                           ),
                         )
                         .toList(),
