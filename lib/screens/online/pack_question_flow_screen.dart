@@ -77,9 +77,10 @@ class _PackQuestionFlowScreenState
       return;
     }
 
-    // The last question sends the user back
-    // to the Feed from OnlineResultScreen.
+    // The last question closes the flow
+    // and returns to the previous screen.
     if (isLastQuestion) {
+      Navigator.pop(context);
       return;
     }
 
