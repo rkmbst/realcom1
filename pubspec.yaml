@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:
@@ -19,5 +20,3 @@ flutter:
 
   assets:
     - assets/images/aurora_titanium_wheel.png
-
-shared_preferences: ^2.5.3
