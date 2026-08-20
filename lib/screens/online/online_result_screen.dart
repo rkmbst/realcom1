@@ -12,7 +12,6 @@ import '../../models/question.dart';
 import '../../models/question_option.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
-import 'online_feed_screen.dart';
 
 class OnlineResultScreen extends StatefulWidget {
   final Question question;
@@ -158,18 +157,8 @@ class _OnlineResultScreenState
     setState(() {});
   }
 
-  void _backToWheel() {
+  void _backToPreviousScreen() {
     Navigator.pop(context);
-  }
-
-  void _backToFeed() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) =>
-            const OnlineFeedScreen(),
-      ),
-      (route) => false,
-    );
   }
 
   String _questionTypeLabel() {
@@ -556,9 +545,7 @@ class _OnlineResultScreenState
                         OutlinedButton
                             .icon(
                       onPressed:
-                          widget.isLastQuestion
-                              ? _backToFeed
-                              : _backToWheel,
+                          _backToPreviousScreen,
                       icon: Icon(
                         widget.isLastQuestion
                             ? Icons
@@ -568,8 +555,8 @@ class _OnlineResultScreenState
                       ),
                       label: Text(
                         widget.isLastQuestion
-                            ? 'العودة إلى Feed'
-                            : 'العودة إلى العجلة',
+                            ? 'إنهاء'
+                            : 'التالي',
                       ),
                       style:
                           OutlinedButton
