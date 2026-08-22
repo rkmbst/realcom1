@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../models/question_pack.dart';
 import '../../widgets/liquid_background.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/profile_screen.dart';
@@ -22,7 +23,7 @@ class _OnlineAppShellState
     extends State<OnlineAppShell> {
   int _currentIndex = 0;
 
-  late final List<Widget> _pages;
+  late List<Widget> _pages;
 
   @override
   void initState() {
@@ -31,7 +32,6 @@ class _OnlineAppShellState
     _pages = [
       const OnlineFeedScreen(),
       const NotificationsScreen(),
-      const AddQuestionScreen(),
       const _ExplorePlaceholder(),
       const ProfileScreen(),
     ];
@@ -47,14 +47,40 @@ class _OnlineAppShellState
     });
   }
 
+  Future<void> _openAddQuestion() async {
+    final QuestionPack? pack =
+        await Navigator.of(context).push<QuestionPack>(
+      MaterialPageRoute(
+        builder: (_) =>
+            const AddQuestionScreen(),
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (pack != null) {
+      // Recreate the Feed so the newly
+      // published pack appears immediately.
+      setState(() {
+        _pages[0] =
+            const OnlineFeedScreen();
+        _currentIndex = 0;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor:
+          AppColors.background,
       extendBody: true,
       body: Stack(
         children: [
           const LiquidBackground(),
+
           SafeArea(
             bottom: false,
             child: IndexedStack(
@@ -66,8 +92,12 @@ class _OnlineAppShellState
       ),
       bottomNavigationBar:
           _OnlineBottomNavigation(
-        currentIndex: _currentIndex,
-        onChanged: _selectTab,
+        currentIndex:
+            _currentIndex,
+        onChanged:
+            _selectTab,
+        onAdd:
+            _openAddQuestion,
       ),
     );
   }
@@ -78,30 +108,34 @@ class _OnlineBottomNavigation
   const _OnlineBottomNavigation({
     required this.currentIndex,
     required this.onChanged,
+    required this.onAdd,
   });
 
   final int currentIndex;
   final ValueChanged<int> onChanged;
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      minimum: const EdgeInsets.only(
+      minimum:
+          const EdgeInsets.only(
         left: 12,
         right: 12,
         bottom: 8,
       ),
       child: Container(
         height: 70,
-        decoration: BoxDecoration(
-          color: AppColors.surface.withOpacity(
-            0.78,
-          ),
+        decoration:
+            BoxDecoration(
+          color: AppColors.surface
+              .withOpacity(0.78),
           borderRadius:
               BorderRadius.circular(24),
           border: Border.all(
-            color: AppColors.titaniumBorder
+            color: AppColors
+                .titaniumBorder
                 .withOpacity(0.55),
           ),
           boxShadow: const [
@@ -123,31 +157,34 @@ class _OnlineBottomNavigation
                 label: 'الرئيسية',
                 selected:
                     currentIndex == 0,
-                onTap: () => onChanged(0),
+                onTap: () =>
+                    onChanged(0),
               ),
             ),
+
             Expanded(
               child: _NavItem(
-                icon:
-                    Icons.notifications_outlined,
-                activeIcon:
-                    Icons.notifications_rounded,
+                icon: Icons
+                    .notifications_outlined,
+                activeIcon: Icons
+                    .notifications_rounded,
                 label: 'الإشعارات',
                 selected:
                     currentIndex == 1,
-                onTap: () => onChanged(1),
+                onTap: () =>
+                    onChanged(1),
               ),
             ),
+
             SizedBox(
               width: 76,
               child: Center(
                 child: _AddNavButton(
-                  selected:
-                      currentIndex == 2,
-                  onTap: () => onChanged(2),
+                  onTap: onAdd,
                 ),
               ),
             ),
+
             Expanded(
               child: _NavItem(
                 icon:
@@ -156,20 +193,23 @@ class _OnlineBottomNavigation
                     Icons.explore_rounded,
                 label: 'استكشاف',
                 selected:
-                    currentIndex == 3,
-                onTap: () => onChanged(3),
+                    currentIndex == 2,
+                onTap: () =>
+                    onChanged(2),
               ),
             ),
+
             Expanded(
               child: _NavItem(
-                icon:
-                    Icons.person_outline_rounded,
+                icon: Icons
+                    .person_outline_rounded,
                 activeIcon:
                     Icons.person_rounded,
                 label: 'الملف',
                 selected:
-                    currentIndex == 4,
-                onTap: () => onChanged(4),
+                    currentIndex == 3,
+                onTap: () =>
+                    onChanged(3),
               ),
             ),
           ],
@@ -218,16 +258,22 @@ class _NavItem
                 size: 24,
                 color: selected
                     ? AppColors.primary
-                    : AppColors.textSecondary,
+                    : AppColors
+                        .textSecondary,
               ),
-              const SizedBox(height: 3),
+              const SizedBox(
+                height: 3,
+              ),
               Text(
                 label,
                 style:
-                    AppTextStyles.caption.copyWith(
+                    AppTextStyles.caption
+                        .copyWith(
                   color: selected
-                      ? AppColors.textPrimary
-                      : AppColors.textSecondary,
+                      ? AppColors
+                          .textPrimary
+                      : AppColors
+                          .textSecondary,
                 ),
               ),
             ],
@@ -241,44 +287,39 @@ class _NavItem
 class _AddNavButton
     extends StatelessWidget {
   const _AddNavButton({
-    required this.selected,
     required this.onTap,
   });
 
-  final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      selected: selected,
       label: 'إضافة سؤال',
       child: InkWell(
         onTap: onTap,
         borderRadius:
             BorderRadius.circular(20),
-        child: AnimatedContainer(
-          duration:
-              const Duration(milliseconds: 150),
+        child: Container(
           width: 48,
           height: 48,
-          decoration: BoxDecoration(
-            color: selected
-                ? AppColors.primary
-                : AppColors.surfaceVariant,
+          decoration:
+              BoxDecoration(
+            color:
+                AppColors.surfaceVariant,
             shape: BoxShape.circle,
             border: Border.all(
-              color: AppColors.titaniumBorder
+              color: AppColors
+                  .titaniumBorder
                   .withOpacity(0.65),
             ),
           ),
-          child: Icon(
+          child: const Icon(
             Icons.add_rounded,
             size: 26,
-            color: selected
-                ? AppColors.onPrimary
-                : AppColors.textPrimary,
+            color:
+                AppColors.textPrimary,
           ),
         ),
       ),
@@ -313,21 +354,28 @@ class _ExplorePlaceholder
                 Icons.explore_outlined,
                 size: 48,
                 color:
-                    AppColors.textSecondary,
+                    AppColors
+                        .textSecondary,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(
+                height: 16,
+              ),
               Text(
                 'استكشاف',
                 style:
-                    AppTextStyles.titleLarge,
+                    AppTextStyles
+                        .titleLarge,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(
+                height: 8,
+              ),
               Text(
-                'هنا سنبني لاحقًا البحث، الهاشتاقات، الفئات، الترند، والمستخدمين المقترحين.',
+                'سنضيف هنا البحث والهاشتاقات والفئات والترند والمستخدمين المقترحين.',
                 textAlign:
                     TextAlign.center,
                 style:
-                    AppTextStyles.bodyMedium,
+                    AppTextStyles
+                        .bodyMedium,
               ),
             ],
           ),
