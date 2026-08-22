@@ -67,20 +67,27 @@ class _OnlineFeedScreenState
   void _rebuildFeed() {
     final cards = <FeedCard>[];
 
-    // Mock packs.
+    // Built-in mock packs.
     for (final pack
         in MockOnlineData.packs) {
       if (pack.questions.isEmpty) {
         continue;
       }
 
-      final publisher =
-          MockOnlineData.publishers
-              .firstWhere(
-        (item) =>
-            item.id ==
-            pack.publisherId,
-      );
+      Publisher? publisher;
+
+      for (final item
+          in MockOnlineData.publishers) {
+        if (item.id ==
+            pack.publisherId) {
+          publisher = item;
+          break;
+        }
+      }
+
+      if (publisher == null) {
+        continue;
+      }
 
       cards.add(
         FeedCard(
@@ -117,11 +124,16 @@ class _OnlineFeedScreenState
         pack.questions.first.categoryId,
       );
 
-      final publisher = Publisher(
-        id: author.id,
-        name: author.displayName,
-        handle: '@${author.username}',
-        accentColor: category.color,
+      final publisher =
+          Publisher(
+        id:
+            author.id,
+        name:
+            author.displayName,
+        handle:
+            '@${author.username}',
+        accentColor:
+            category.color,
       );
 
       cards.add(
@@ -216,7 +228,8 @@ class _OnlineFeedScreenState
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          duration: const Duration(
+          duration:
+              const Duration(
             milliseconds: 1200,
           ),
           backgroundColor:
@@ -226,7 +239,8 @@ class _OnlineFeedScreenState
                 ? 'تم الحذف من المحفوظات'
                 : 'تم الحفظ للإجابة لاحقًا',
             style:
-                AppTextStyles.bodyMedium,
+                AppTextStyles
+                    .bodyMedium,
           ),
           behavior:
               SnackBarBehavior.floating,
@@ -261,11 +275,13 @@ class _OnlineFeedScreenState
       ),
     );
 
-    if (mounted) {
-      setState(() {
-        _rebuildFeed();
-      });
+    if (!mounted) {
+      return;
     }
+
+    setState(() {
+      _rebuildFeed();
+    });
   }
 
   Future<void>
@@ -281,6 +297,10 @@ class _OnlineFeedScreenState
         questions
             .take(7)
             .toList();
+
+    if (selected.isEmpty) {
+      return;
+    }
 
     await Navigator.push(
       context,
@@ -331,12 +351,14 @@ class _OnlineFeedScreenState
         alignment:
             WrapAlignment.center,
         children:
-            question.hashtags.map(
+            question.hashtags
+                .map(
           (tag) {
             return Text(
               '#$tag',
               style:
-                  AppTextStyles.caption
+                  AppTextStyles
+                      .caption
                       .copyWith(
                 color:
                     AppColors
@@ -344,7 +366,8 @@ class _OnlineFeedScreenState
               ),
             );
           },
-        ).toList(),
+        )
+                .toList(),
       ),
     );
   }
@@ -372,7 +395,6 @@ class _OnlineFeedScreenState
       ),
       child: Column(
         children: [
-          // Publisher
           LiquidGlassContainer(
             padding:
                 const EdgeInsets
@@ -421,51 +443,26 @@ class _OnlineFeedScreenState
                     ),
                   ),
                 ),
-
-                // Save button with visual state
-                AnimatedContainer(
-                  duration:
-                      const Duration(
-                    milliseconds: 250,
-                  ),
-                  curve:
-                      Curves.easeOutCubic,
-                  decoration:
-                      BoxDecoration(
-                    color: saved
-                        ? AppColors
-                            .secondary
-                            .withOpacity(
-                          0.12,
-                        )
-                        : Colors
-                            .transparent,
-                    borderRadius:
-                        BorderRadius.circular(
-                      12,
-                    ),
-                  ),
-                  child: IconButton(
-                    tooltip: saved
-                        ? 'حذف من المحفوظات'
-                        : 'سأجيب لاحقًا',
-                    onPressed: () =>
-                        _toggleSave(
-                      card,
-                    ),
-                    icon: Icon(
+                IconButton(
+                  tooltip:
                       saved
-                          ? Icons
-                              .bookmark_rounded
-                          : Icons
-                              .bookmark_border_rounded,
-                    ),
-                    color: saved
-                        ? AppColors
-                            .secondary
-                        : AppColors
-                            .textPrimary,
+                          ? 'حذف من المحفوظات'
+                          : 'سأجيب لاحقًا',
+                  onPressed: () =>
+                      _toggleSave(
+                    card,
                   ),
+                  icon: Icon(
+                    saved
+                        ? Icons
+                            .bookmark_rounded
+                        : Icons
+                            .bookmark_border_rounded,
+                  ),
+                  color:
+                      saved
+                          ? AppColors.secondary
+                          : AppColors.textPrimary,
                 ),
               ],
             ),
@@ -476,8 +473,7 @@ class _OnlineFeedScreenState
           ),
 
           Expanded(
-            child:
-                SwipeableCard(
+            child: SwipeableCard(
               onSwipeLeft: () =>
                   _markNotInterested(
                 card,
@@ -495,8 +491,7 @@ class _OnlineFeedScreenState
                 child:
                     LiquidGlassContainer(
                   padding:
-                      const EdgeInsets
-                          .all(
+                      const EdgeInsets.all(
                     24,
                   ),
                   child:
@@ -515,8 +510,7 @@ class _OnlineFeedScreenState
                         decoration:
                             BoxDecoration(
                           color:
-                              category
-                                  .color
+                              category.color
                                   .withOpacity(
                             0.12,
                           ),
@@ -528,8 +522,7 @@ class _OnlineFeedScreenState
                           border:
                               Border.all(
                             color:
-                                category
-                                    .color
+                                category.color
                                     .withOpacity(
                               0.65,
                             ),
@@ -543,8 +536,7 @@ class _OnlineFeedScreenState
                                   .caption
                                   .copyWith(
                             color:
-                                category
-                                    .color,
+                                category.color,
                           ),
                         ),
                       ),
@@ -556,8 +548,7 @@ class _OnlineFeedScreenState
                       Text(
                         card.question.text,
                         textAlign:
-                            TextAlign
-                                .center,
+                            TextAlign.center,
                         style:
                             AppTextStyles
                                 .displayLarge,
@@ -571,8 +562,8 @@ class _OnlineFeedScreenState
                         height: 28,
                       ),
 
-                      Text(
-                        'اضغط للإجابة',
+                      const Text(
+                        'اضغط لفتح السؤال',
                         style:
                             AppTextStyles
                                 .caption,
@@ -588,30 +579,10 @@ class _OnlineFeedScreenState
             height: 12,
           ),
 
-          Row(
-            mainAxisAlignment:
-                MainAxisAlignment
-                    .center,
-            children: [
-              Text(
-                '${_currentIndex + 1} / ${_cards.length}',
-                style:
-                    AppTextStyles.caption,
-              ),
-              if (saved) ...[
-                const SizedBox(
-                  width: 8,
-                ),
-                const Icon(
-                  Icons
-                      .bookmark_rounded,
-                  size: 14,
-                  color:
-                      AppColors
-                          .secondary,
-                ),
-              ],
-            ],
+          Text(
+            '${_currentIndex + 1} / ${_cards.length}',
+            style:
+                AppTextStyles.caption,
           ),
         ],
       ),
@@ -626,12 +597,52 @@ class _OnlineFeedScreenState
       return Scaffold(
         backgroundColor:
             AppColors.background,
-        body: const Center(
-          child: Text(
-            'لا توجد أسئلة حاليًا.',
-            style:
-                AppTextStyles.bodyLarge,
-          ),
+        body: Stack(
+          children: [
+            const LiquidBackground(),
+            Center(
+              child: Padding(
+                padding:
+                    const EdgeInsets.all(
+                  32,
+                ),
+                child: Column(
+                  mainAxisSize:
+                      MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons
+                          .inbox_outlined,
+                      size: 56,
+                      color:
+                          AppColors
+                              .textSecondary,
+                    ),
+                    const SizedBox(
+                      height: 16,
+                    ),
+                    Text(
+                      'لا توجد أسئلة حاليًا',
+                      style:
+                          AppTextStyles
+                              .titleLarge,
+                    ),
+                    const SizedBox(
+                      height: 8,
+                    ),
+                    Text(
+                      'أنشئ أول مجموعة من زر + لتظهر هنا.',
+                      textAlign:
+                          TextAlign.center,
+                      style:
+                          AppTextStyles
+                              .bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -641,14 +652,11 @@ class _OnlineFeedScreenState
           AppColors.background,
       appBar: AppBar(
         title:
-            const Text(
-          'الرئيسية',
-        ),
+            const Text('الرئيسية'),
         centerTitle: true,
         actions: [
           IconButton(
-            tooltip:
-                'العجلة',
+            tooltip: 'العجلة',
             onPressed: () =>
                 _openPublisherWheel(
               _cards[
@@ -664,7 +672,6 @@ class _OnlineFeedScreenState
       body: Stack(
         children: [
           const LiquidBackground(),
-
           SafeArea(
             child:
                 PageView.builder(
@@ -678,6 +685,10 @@ class _OnlineFeedScreenState
                   _cards.length,
               onPageChanged:
                   (index) {
+                if (!mounted) {
+                  return;
+                }
+
                 setState(() {
                   _currentIndex =
                       index;
