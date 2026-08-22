@@ -12,7 +12,10 @@ import 'online_feed_screen.dart';
 class OnlineAppShell extends StatefulWidget {
   const OnlineAppShell({
     super.key,
+    this.initialIndex = 0,
   });
+
+  final int initialIndex;
 
   @override
   State<OnlineAppShell> createState() =>
@@ -21,13 +24,16 @@ class OnlineAppShell extends StatefulWidget {
 
 class _OnlineAppShellState
     extends State<OnlineAppShell> {
-  int _currentIndex = 0;
+  late int _currentIndex;
 
   late List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
+
+    _currentIndex =
+        widget.initialIndex.clamp(0, 3);
 
     _pages = [
       const OnlineFeedScreen(),
@@ -61,8 +67,6 @@ class _OnlineAppShellState
     }
 
     if (pack != null) {
-      // Recreate the Feed so the newly
-      // published pack appears immediately.
       setState(() {
         _pages[0] =
             const OnlineFeedScreen();
@@ -161,7 +165,6 @@ class _OnlineBottomNavigation
                     onChanged(0),
               ),
             ),
-
             Expanded(
               child: _NavItem(
                 icon: Icons
@@ -175,7 +178,6 @@ class _OnlineBottomNavigation
                     onChanged(1),
               ),
             ),
-
             SizedBox(
               width: 76,
               child: Center(
@@ -184,7 +186,6 @@ class _OnlineBottomNavigation
                 ),
               ),
             ),
-
             Expanded(
               child: _NavItem(
                 icon:
@@ -198,7 +199,6 @@ class _OnlineBottomNavigation
                     onChanged(2),
               ),
             ),
-
             Expanded(
               child: _NavItem(
                 icon: Icons
