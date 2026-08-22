@@ -5,8 +5,7 @@ import '../../models/publisher.dart';
 import '../../models/question_pack.dart';
 import 'online_question_screen.dart';
 
-class PackQuestionFlowScreen
-    extends StatefulWidget {
+class PackQuestionFlowScreen extends StatefulWidget {
   const PackQuestionFlowScreen({
     super.key,
     required this.publisher,
@@ -24,98 +23,91 @@ class PackQuestionFlowScreen
 class _PackQuestionFlowScreenState
     extends State<PackQuestionFlowScreen> {
   int _currentIndex = 0;
-  bool _opening = false;
+  bool _started = false;
 
   @override
   void initState() {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _openCurrentQuestion(),
+      (_) {
+        _startFlow();
+      },
     );
   }
 
-  Future<void> _openCurrentQuestion() async {
-    if (!mounted || _opening) {
+  Future<void> _startFlow() async {
+    if (_started || !mounted) {
       return;
     }
 
+    _started = true;
+
     final questions = widget.pack.questions;
 
-    if (questions.isEmpty ||
-        _currentIndex >= questions.length) {
+    if (questions.isEmpty) {
       if (mounted) {
         Navigator.pop(context);
       }
       return;
     }
 
-    _opening = true;
+    while (mounted &&
+        _currentIndex < questions.length) {
+      final index = _currentIndex;
 
-    final isLastQuestion =
-        _currentIndex ==
-            questions.length - 1;
+      final isLastQuestion =
+          index == questions.length - 1;
 
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            OnlineQuestionScreen(
-          question:
-              questions[_currentIndex],
-          publisher:
-              widget.publisher,
-          isLastQuestion:
-              isLastQuestion,
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OnlineQuestionScreen(
+            question: questions[index],
+            publisher: widget.publisher,
+            isLastQuestion: isLastQuestion,
+          ),
         ),
-      ),
-    );
+      );
 
-    _opening = false;
+      if (!mounted) {
+        return;
+      }
 
-    if (!mounted) {
-      return;
-    }
+      if (isLastQuestion) {
+        // The final Result screen was closed.
+        // Close the flow and return to Feed.
+        Navigator.pop(context);
+        return;
+      }
 
-    // The last question closes the flow
-    // and returns to the previous screen.
-    if (isLastQuestion) {
-      Navigator.pop(context);
-      return;
-    }
-
-    if (_currentIndex <
-        questions.length - 1) {
       Haptics.light();
 
       setState(() {
         _currentIndex++;
       });
+    }
 
-      await _openCurrentQuestion();
+    if (mounted) {
+      Navigator.pop(context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final total = widget.pack.questions.length;
+
     return Scaffold(
-      backgroundColor:
-          Colors.transparent,
-      body: Stack(
-        children: [
-          const ColoredBox(
-            color: Colors.transparent,
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: Center(
+          child: Text(
+            total == 0
+                ? 'لا توجد أسئلة في هذه المجموعة.'
+                : 'السؤال ${_currentIndex + 1} من $total',
+            textAlign: TextAlign.center,
           ),
-          SafeArea(
-            child: Center(
-              child: Text(
-                'جاري فتح السؤال ${_currentIndex + 1} من ${widget.pack.questions.length}…',
-                textAlign:
-                    TextAlign.center,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
