@@ -59,7 +59,7 @@ class _PackQuestionFlowScreenState
       final isLastQuestion =
           index == questions.length - 1;
 
-      await Navigator.push(
+      final result = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
           builder: (_) => OnlineQuestionScreen(
@@ -76,8 +76,8 @@ class _PackQuestionFlowScreenState
 
       if (isLastQuestion) {
         // The final Result screen was closed.
-        // Close the flow and return to Feed.
-        Navigator.pop(context);
+        // Pass the result back to the previous screen.
+        Navigator.pop(context, result);
         return;
       }
 
