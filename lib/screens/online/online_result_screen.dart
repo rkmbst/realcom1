@@ -158,7 +158,7 @@ class _OnlineResultScreenState
   }
 
   void _backToPreviousScreen() {
-    Navigator.pop(context);
+    Navigator.pop(context, true);
   }
 
   String _questionTypeLabel() {
