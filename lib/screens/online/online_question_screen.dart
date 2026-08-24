@@ -482,7 +482,7 @@ class _OnlineQuestionScreenState
     setSheetState(() {});
   }
 
-  void _confirm() {
+  Future<void> _confirm() async {
     final selectedOptionId =
         _selectedOptionId;
 
@@ -496,7 +496,7 @@ class _OnlineQuestionScreenState
 
     Haptics.light();
 
-    Navigator.pushReplacement(
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) =>
@@ -509,6 +509,14 @@ class _OnlineQuestionScreenState
         ),
       ),
     );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (result == true) {
+      Navigator.pop(context, true);
+    }
   }
 
   @override
