@@ -6,6 +6,7 @@ class QuestionComment {
     required this.authorName,
     required this.text,
     required this.createdAt,
+    this.parentCommentId,
   });
 
   final String id;
@@ -14,4 +15,10 @@ class QuestionComment {
   final String authorName;
   final String text;
   final DateTime createdAt;
+
+  /// Null = تعليق رئيسي.
+  /// غير null = رد على تعليق آخر.
+  final String? parentCommentId;
+
+  bool get isReply => parentCommentId != null;
 }
