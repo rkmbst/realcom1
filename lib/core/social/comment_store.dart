@@ -7,8 +7,8 @@ class CommentStore {
   static final CommentStore instance =
       CommentStore._();
 
-  final List<QuestionComment>
-      _comments = <QuestionComment>[];
+  final List<QuestionComment> _comments =
+      <QuestionComment>[];
 
   List<QuestionComment> forQuestion(
     String questionId,
@@ -18,6 +18,36 @@ class CommentStore {
           (comment) =>
               comment.questionId ==
               questionId,
+        )
+        .toList(
+          growable: false,
+        );
+  }
+
+  List<QuestionComment> rootComments(
+    String questionId,
+  ) {
+    return _comments
+        .where(
+          (comment) =>
+              comment.questionId ==
+                  questionId &&
+              comment.parentCommentId ==
+                  null,
+        )
+        .toList(
+          growable: false,
+        );
+  }
+
+  List<QuestionComment> repliesFor(
+    String commentId,
+  ) {
+    return _comments
+        .where(
+          (comment) =>
+              comment.parentCommentId ==
+              commentId,
         )
         .toList(
           growable: false,
@@ -36,21 +66,51 @@ class CommentStore {
         .length;
   }
 
+  int replyCount(
+    String commentId,
+  ) {
+    return _comments
+        .where(
+          (comment) =>
+              comment.parentCommentId ==
+              commentId,
+        )
+        .length;
+  }
+
   QuestionComment add({
     required String questionId,
     required String text,
+    String? parentCommentId,
   }) {
+    final trimmed =
+        text.trim();
+
+    if (trimmed.isEmpty) {
+      throw ArgumentError(
+        'Comment text cannot be empty.',
+      );
+    }
+
     final user =
         AuthSession.instance.currentUser;
 
-    final comment = QuestionComment(
+    final comment =
+        QuestionComment(
       id:
           'comment-${DateTime.now().microsecondsSinceEpoch}',
-      questionId: questionId,
-      authorId: user.id,
-      authorName: user.displayName,
-      text: text.trim(),
-      createdAt: DateTime.now(),
+      questionId:
+          questionId,
+      authorId:
+          user.id,
+      authorName:
+          user.displayName,
+      text:
+          trimmed,
+      createdAt:
+          DateTime.now(),
+      parentCommentId:
+          parentCommentId,
     );
 
     _comments.add(comment);
@@ -61,9 +121,25 @@ class CommentStore {
   void remove(
     String commentId,
   ) {
+    final childIds = _comments
+        .where(
+          (comment) =>
+              comment.parentCommentId ==
+              commentId,
+        )
+        .map(
+          (comment) =>
+              comment.id,
+        )
+        .toSet();
+
     _comments.removeWhere(
       (comment) =>
-          comment.id == commentId,
+          comment.id ==
+              commentId ||
+          childIds.contains(
+            comment.id,
+          ),
     );
   }
 
