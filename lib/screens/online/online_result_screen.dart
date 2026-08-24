@@ -551,11 +551,11 @@ class _OnlineResultScreenState
                             ? Icons
                                 .arrow_back_rounded
                             : Icons
-                                .casino_outlined,
+                                .arrow_forward_rounded,
                       ),
                       label: Text(
                         widget.isLastQuestion
-                            ? 'إنهاء'
+                            ? 'العودة إلى Feed'
                             : 'التالي',
                       ),
                       style:
