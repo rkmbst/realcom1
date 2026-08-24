@@ -46,9 +46,7 @@ class _PackQuestionFlowScreenState
     final questions = widget.pack.questions;
 
     if (questions.isEmpty) {
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      Navigator.pop(context);
       return;
     }
 
@@ -74,10 +72,13 @@ class _PackQuestionFlowScreenState
         return;
       }
 
+      if (result != true) {
+        Navigator.pop(context);
+        return;
+      }
+
       if (isLastQuestion) {
-        // The final Result screen was closed.
-        // Pass the result back to the previous screen.
-        Navigator.pop(context, result);
+        Navigator.pop(context, true);
         return;
       }
 
@@ -89,7 +90,7 @@ class _PackQuestionFlowScreenState
     }
 
     if (mounted) {
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     }
   }
 
