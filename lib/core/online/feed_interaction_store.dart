@@ -170,6 +170,10 @@ class FeedInteractionStore {
     );
   }
 
+  // ─────────────────────────────────────
+  // Likes
+  // ─────────────────────────────────────
+
   bool isLiked(
     String questionId,
   ) {
@@ -198,17 +202,42 @@ class FeedInteractionStore {
     return true;
   }
 
+  int likeCount(
+    String questionId,
+  ) {
+    var count = 0;
+
+    for (final questions
+        in _likedQuestionsByUser.values) {
+      if (questions.contains(
+        questionId,
+      )) {
+        count++;
+      }
+    }
+
+    return count;
+  }
+
   List<String> likedQuestionIds() {
     return List.unmodifiable(
       _likedQuestions,
     );
   }
 
+  // ─────────────────────────────────────
+  // Saved
+  // ─────────────────────────────────────
+
   List<String> savedContentIds() {
     return List.unmodifiable(
       _saved,
     );
   }
+
+  // ─────────────────────────────────────
+  // Opened / Answered
+  // ─────────────────────────────────────
 
   List<String> openedContentIds() {
     return List.unmodifiable(
@@ -221,6 +250,10 @@ class FeedInteractionStore {
       _answered,
     );
   }
+
+  // ─────────────────────────────────────
+  // Current-user reset
+  // ─────────────────────────────────────
 
   void clearCurrentUser() {
     _interestedByUser.remove(
