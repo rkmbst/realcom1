@@ -25,7 +25,8 @@ class SocialReplyThreadSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.55),
+      barrierColor:
+          Colors.black.withOpacity(0.55),
       builder: (_) {
         return SocialReplyThreadSheet(
           parentComment: parentComment,
@@ -63,6 +64,7 @@ class _SocialReplyThreadSheetState
   ) {
     setState(() {
       _replyTarget = comment;
+      _controller.clear();
     });
   }
 
@@ -81,13 +83,16 @@ class _SocialReplyThreadSheetState
       return;
     }
 
+    final currentParent =
+        _replyTarget ??
+            widget.parentComment;
+
     _commentStore.add(
       questionId:
           widget.parentComment.questionId,
       text: text,
       parentCommentId:
-          _replyTarget?.id ??
-              widget.parentComment.id,
+          currentParent.id,
     );
 
     _controller.clear();
@@ -101,15 +106,18 @@ class _SocialReplyThreadSheetState
   Widget build(
     BuildContext context,
   ) {
-    final replies =
-        _commentStore.repliesFor(
-      _replyTarget?.id ??
-          widget.parentComment.id,
-    );
-
-    final replyingTo =
+    final currentParent =
         _replyTarget ??
             widget.parentComment;
+
+    final replies =
+        _commentStore.repliesFor(
+      currentParent.id,
+    );
+
+    final isRootThread =
+        currentParent.id ==
+            widget.parentComment.id;
 
     return SafeArea(
       child: Padding(
@@ -159,7 +167,9 @@ class _SocialReplyThreadSheetState
                       BoxDecoration(
                     color: AppColors
                         .textSecondary
-                        .withOpacity(0.45),
+                        .withOpacity(
+                      0.45,
+                    ),
                     borderRadius:
                         BorderRadius.circular(
                       999,
@@ -185,12 +195,41 @@ class _SocialReplyThreadSheetState
                     ),
                     Expanded(
                       child: Text(
-                        'الردود على @${widget.parentComment.authorName}',
+                        isRootThread
+                            ? 'الردود على @${widget.parentComment.authorName}'
+                            : 'الردود على @${currentParent.authorName}',
                         style:
                             AppTextStyles
                                 .titleMedium,
                       ),
                     ),
+                    if (!isRootThread)
+                      TextButton(
+                        onPressed:
+                            () {
+                          setState(() {
+                            _replyTarget =
+                                null;
+                          });
+                        },
+                        style:
+                            TextButton.styleFrom(
+                          padding:
+                              EdgeInsets.zero,
+                          minimumSize:
+                              const Size(
+                            0,
+                            32,
+                          ),
+                          tapTargetSize:
+                              MaterialTapTargetSize
+                                  .shrinkWrap,
+                        ),
+                        child:
+                            const Text(
+                          'الرئيسي',
+                        ),
+                      ),
                   ],
                 ),
 
@@ -205,25 +244,24 @@ class _SocialReplyThreadSheetState
                       const EdgeInsets.all(
                     12,
                   ),
-                  child:
-                      Column(
+                  child: Column(
                     crossAxisAlignment:
                         CrossAxisAlignment
                             .start,
                     children: [
                       SocialUserName(
                         userId:
-                            widget.parentComment
+                            currentParent
                                 .authorId,
                         userName:
-                            widget.parentComment
+                            currentParent
                                 .authorName,
                       ),
                       const SizedBox(
                         height: 5,
                       ),
                       Text(
-                        widget.parentComment.text,
+                        currentParent.text,
                         style:
                             AppTextStyles
                                 .bodyMedium,
@@ -274,20 +312,25 @@ class _SocialReplyThreadSheetState
                               reply.id,
                             );
 
+                            final replyCount =
+                                _commentStore
+                                    .replyCount(
+                              reply.id,
+                            );
+
                             return SocialReplyCard(
-                              reply: reply,
+                              reply:
+                                  reply,
                               parent:
-                                  widget.parentComment,
+                                  currentParent,
                               likeCount:
                                   likeCount,
                               replyCount:
-                                  _commentStore
-                                      .replyCount(
-                                reply.id,
-                              ),
+                                  replyCount,
                               isLiked:
                                   isLiked,
-                              onLike: () {
+                              onLike:
+                                  () {
                                 setState(() {
                                   _likeStore
                                       .toggleLike(
@@ -295,7 +338,8 @@ class _SocialReplyThreadSheetState
                                   );
                                 });
                               },
-                              onReply: () {
+                              onReply:
+                                  () {
                                 _startReply(
                                   reply,
                                 );
@@ -389,7 +433,8 @@ class _SocialReplyThreadSheetState
                   ),
                   child: Row(
                     crossAxisAlignment:
-                        CrossAxisAlignment.end,
+                        CrossAxisAlignment
+                            .end,
                     children: [
                       Expanded(
                         child:
@@ -400,20 +445,22 @@ class _SocialReplyThreadSheetState
                           minLines: 1,
                           maxLines: 4,
                           textInputAction:
-                              TextInputAction.send,
+                              TextInputAction
+                                  .send,
                           style:
-                              AppTextStyles.bodyMedium
+                              AppTextStyles
+                                  .bodyMedium
                                   .copyWith(
-                            color:
-                                AppColors
-                                    .textPrimary,
+                            color: AppColors
+                                .textPrimary,
                           ),
                           cursorColor:
-                              AppColors.primary,
+                              AppColors
+                                  .primary,
                           decoration:
                               InputDecoration(
                             hintText:
-                                'الرد على @${replyingTo.authorName}...',
+                                'الرد على @${currentParent.authorName}...',
                             hintStyle:
                                 AppTextStyles
                                     .bodyMedium
@@ -431,15 +478,20 @@ class _SocialReplyThreadSheetState
                                 Colors
                                     .transparent,
                             border:
-                                InputBorder.none,
+                                InputBorder
+                                    .none,
                             enabledBorder:
-                                InputBorder.none,
+                                InputBorder
+                                    .none,
                             focusedBorder:
-                                InputBorder.none,
+                                InputBorder
+                                    .none,
                             errorBorder:
-                                InputBorder.none,
+                                InputBorder
+                                    .none,
                             focusedErrorBorder:
-                                InputBorder.none,
+                                InputBorder
+                                    .none,
                             contentPadding:
                                 const EdgeInsets
                                     .symmetric(
@@ -458,8 +510,7 @@ class _SocialReplyThreadSheetState
                       Material(
                         color: Colors
                             .transparent,
-                        child:
-                            InkWell(
+                        child: InkWell(
                           onTap:
                               _submitReply,
                           borderRadius:
@@ -498,7 +549,8 @@ class _SocialReplyThreadSheetState
                                   .send_rounded,
                               size: 20,
                               color:
-                                  AppColors.primary,
+                                  AppColors
+                                      .primary,
                             ),
                           ),
                         ),
