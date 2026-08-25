@@ -10,6 +10,7 @@ import '../../core/utils/categories.dart';
 import '../../core/utils/haptics.dart';
 import '../../models/publisher.dart';
 import '../../models/question.dart';
+import '../../models/question_comment.dart';
 import '../../models/question_option.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
@@ -35,6 +36,8 @@ class OnlineQuestionScreen extends StatefulWidget {
 
 class _OnlineQuestionScreenState
     extends State<OnlineQuestionScreen> {
+  final _session = AuthSession.instance;
+
   final _feedInteractions =
       FeedInteractionStore.instance;
 
@@ -43,9 +46,6 @@ class _OnlineQuestionScreenState
 
   final _socialService =
       QuestionSocialService.instance;
-
-  final _session =
-      AuthSession.instance;
 
   late final List<QuestionOption> _options;
 
@@ -101,23 +101,62 @@ class _OnlineQuestionScreenState
     final controller =
         TextEditingController();
 
+    String? replyToCommentId;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor:
           Colors.transparent,
       barrierColor:
-          Colors.black.withOpacity(0.55),
+          Colors.black.withOpacity(
+        0.55,
+      ),
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (
             context,
             setSheetState,
           ) {
-            final comments =
-                _commentStore.forQuestion(
+            final rootComments =
+                _commentStore.rootComments(
               widget.question.id,
             );
+
+            void submitComment() {
+              final text =
+                  controller.text.trim();
+
+              if (text.isEmpty) {
+                return;
+              }
+
+              final wasReply =
+                  replyToCommentId != null;
+
+              _commentStore.add(
+                questionId:
+                    widget.question.id,
+                text: text,
+                parentCommentId:
+                    replyToCommentId,
+              );
+
+              if (!wasReply) {
+                _socialService.notifyComment(
+                  question:
+                      widget.question,
+                );
+              }
+
+              controller.clear();
+
+              setSheetState(() {
+                replyToCommentId = null;
+              });
+
+              Haptics.light();
+            }
 
             return SafeArea(
               child: Padding(
@@ -135,22 +174,34 @@ class _OnlineQuestionScreenState
                   decoration:
                       BoxDecoration(
                     color: AppColors.surface
-                        .withOpacity(0.94),
+                        .withOpacity(
+                      0.96,
+                    ),
                     borderRadius:
                         const BorderRadius.vertical(
-                      top: Radius.circular(28),
-                      bottom: Radius.circular(28),
+                      top: Radius.circular(
+                        28,
+                      ),
+                      bottom: Radius.circular(
+                        28,
+                      ),
                     ),
                     border: Border.all(
                       color: AppColors
                           .titaniumBorder
-                          .withOpacity(0.55),
+                          .withOpacity(
+                        0.55,
+                      ),
                     ),
                     boxShadow: const [
                       BoxShadow(
-                        color: Colors.black38,
+                        color:
+                            Colors.black38,
                         blurRadius: 30,
-                        offset: Offset(0, -8),
+                        offset: Offset(
+                          0,
+                          -8,
+                        ),
                       ),
                     ],
                   ),
@@ -159,7 +210,7 @@ class _OnlineQuestionScreenState
                         MediaQuery.of(
                               context,
                             ).size.height *
-                            0.68,
+                            0.72,
                     child: Padding(
                       padding:
                           const EdgeInsets.all(
@@ -174,9 +225,12 @@ class _OnlineQuestionScreenState
                                 BoxDecoration(
                               color: AppColors
                                   .textSecondary
-                                  .withOpacity(0.45),
+                                  .withOpacity(
+                                0.45,
+                              ),
                               borderRadius:
-                                  BorderRadius.circular(
+                                  BorderRadius
+                                      .circular(
                                 999,
                               ),
                             ),
@@ -195,38 +249,91 @@ class _OnlineQuestionScreenState
                                         .titleMedium,
                               ),
                               const Spacer(),
-                              Container(
-                                padding:
-                                    const EdgeInsets
-                                        .symmetric(
-                                  horizontal: 10,
-                                  vertical: 5,
-                                ),
-                                decoration:
-                                    BoxDecoration(
-                                  color: AppColors
-                                      .surfaceVariant,
-                                  borderRadius:
-                                      BorderRadius.circular(
-                                    999,
-                                  ),
-                                  border: Border.all(
-                                    color: AppColors
-                                        .divider
-                                        .withOpacity(
-                                      0.75,
-                                    ),
-                                  ),
-                                ),
-                                child: Text(
-                                  '${comments.length}',
-                                  style:
-                                      AppTextStyles
-                                          .caption,
-                                ),
+                              Text(
+                                '${_commentStore.countForQuestion(widget.question.id)}',
+                                style:
+                                    AppTextStyles
+                                        .caption,
                               ),
                             ],
                           ),
+
+                          if (replyToCommentId !=
+                              null) ...[
+                            const SizedBox(
+                              height: 10,
+                            ),
+                            Container(
+                              width:
+                                  double.infinity,
+                              padding:
+                                  const EdgeInsets
+                                      .symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration:
+                                  BoxDecoration(
+                                color: AppColors
+                                    .primary
+                                    .withOpacity(
+                                  0.08,
+                                ),
+                                borderRadius:
+                                    BorderRadius
+                                        .circular(
+                                  14,
+                                ),
+                                border:
+                                    Border.all(
+                                  color: AppColors
+                                      .primary
+                                      .withOpacity(
+                                    0.35,
+                                  ),
+                                ),
+                              ),
+                              child:
+                                  Row(
+                                children: [
+                                  const Icon(
+                                    Icons.reply_rounded,
+                                    size: 18,
+                                    color:
+                                        AppColors.primary,
+                                  ),
+                                  const SizedBox(
+                                    width: 8,
+                                  ),
+                                  const Expanded(
+                                    child: Text(
+                                      'الرد على التعليق',
+                                      style:
+                                          AppTextStyles.caption,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    visualDensity:
+                                        VisualDensity.compact,
+                                    onPressed:
+                                        () {
+                                      setSheetState(
+                                        () {
+                                          replyToCommentId =
+                                              null;
+                                        },
+                                      );
+                                    },
+                                    icon:
+                                        const Icon(
+                                      Icons.close_rounded,
+                                      size: 18,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
 
                           const SizedBox(
                             height: 12,
@@ -234,15 +341,15 @@ class _OnlineQuestionScreenState
 
                           Expanded(
                             child:
-                                comments.isEmpty
+                                rootComments.isEmpty
                                     ? const Center(
-                                        child: Text(
+                                        child:
+                                            Text(
                                           'لا توجد تعليقات بعد.\nكن أول من يشارك رأيه.',
                                           textAlign:
                                               TextAlign.center,
                                           style:
-                                              AppTextStyles
-                                                  .bodyMedium,
+                                              AppTextStyles.bodyMedium,
                                         ),
                                       )
                                     : ListView.separated(
@@ -250,85 +357,52 @@ class _OnlineQuestionScreenState
                                             ScrollViewKeyboardDismissBehavior
                                                 .onDrag,
                                         itemCount:
-                                            comments.length,
+                                            rootComments.length,
                                         separatorBuilder:
-                                            (
-                                              _,
-                                              __,
-                                            ) =>
+                                            (_, __) =>
                                                 const SizedBox(
                                           height: 10,
                                         ),
                                         itemBuilder:
-                                            (
-                                              _,
-                                              index,
-                                            ) {
+                                            (_, index) {
                                           final comment =
-                                              comments[
+                                              rootComments[
                                                   index];
 
-                                          return LiquidGlassContainer(
-                                            opacity:
-                                                0.055,
-                                            padding:
-                                                const EdgeInsets.all(
-                                              12,
-                                            ),
-                                            child:
-                                                Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment
-                                                      .start,
-                                              children: [
-                                                InkWell(
-                                                  onTap:
-                                                      () {
-                                                    Navigator.push(
-                                                      context,
-                                                      MaterialPageRoute(
-                                                        builder:
-                                                            (_) =>
-                                                                ProfileScreen(
-                                                          userId:
-                                                              comment.authorId,
-                                                        ),
-                                                      ),
-                                                    );
-                                                  },
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                    8,
-                                                  ),
-                                                  child:
-                                                      Padding(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                      vertical: 2,
-                                                    ),
-                                                    child:
-                                                        Text(
-                                                      comment.authorName,
-                                                      style:
-                                                          AppTextStyles.username.copyWith(
-                                                        color: AppColors.primary,
-                                                      ),
-                                                    ),
+                                          final replies =
+                                              _commentStore
+                                                  .repliesFor(
+                                            comment.id,
+                                          );
+
+                                          return _CommentThread(
+                                            comment:
+                                                comment,
+                                            replies:
+                                                replies,
+                                            onReply:
+                                                () {
+                                              setSheetState(
+                                                () {
+                                                  replyToCommentId =
+                                                      comment.id;
+                                                },
+                                              );
+                                            },
+                                            onOpenProfile:
+                                                (userId) {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder:
+                                                      (_) =>
+                                                          ProfileScreen(
+                                                    userId:
+                                                        userId,
                                                   ),
                                                 ),
-                                                const SizedBox(
-                                                  height:
-                                                      5,
-                                                ),
-                                                Text(
-                                                  comment
-                                                      .text,
-                                                  style:
-                                                      AppTextStyles
-                                                          .bodyMedium,
-                                                ),
-                                              ],
-                                            ),
+                                              );
+                                            },
                                           );
                                         },
                                       ),
@@ -356,7 +430,8 @@ class _OnlineQuestionScreenState
                                   child: TextField(
                                     controller:
                                         controller,
-                                    maxLength: 500,
+                                    maxLength:
+                                        500,
                                     minLines: 1,
                                     maxLines: 4,
                                     textInputAction:
@@ -375,7 +450,10 @@ class _OnlineQuestionScreenState
                                     decoration:
                                         InputDecoration(
                                       hintText:
-                                          'اكتب تعليقك...',
+                                          replyToCommentId ==
+                                                  null
+                                              ? 'اكتب تعليقك...'
+                                              : 'اكتب ردك...',
                                       hintStyle:
                                           AppTextStyles
                                               .bodyMedium
@@ -390,23 +468,17 @@ class _OnlineQuestionScreenState
                                           '',
                                       filled: false,
                                       fillColor:
-                                          Colors
-                                              .transparent,
+                                          Colors.transparent,
                                       border:
-                                          InputBorder
-                                              .none,
+                                          InputBorder.none,
                                       enabledBorder:
-                                          InputBorder
-                                              .none,
+                                          InputBorder.none,
                                       focusedBorder:
-                                          InputBorder
-                                              .none,
+                                          InputBorder.none,
                                       errorBorder:
-                                          InputBorder
-                                              .none,
+                                          InputBorder.none,
                                       focusedErrorBorder:
-                                          InputBorder
-                                              .none,
+                                          InputBorder.none,
                                       contentPadding:
                                           const EdgeInsets
                                               .symmetric(
@@ -415,27 +487,19 @@ class _OnlineQuestionScreenState
                                       ),
                                     ),
                                     onSubmitted:
-                                        (_) {
-                                      _submitComment(
-                                        controller,
-                                        setSheetState,
-                                      );
-                                    },
+                                        (_) =>
+                                            submitComment(),
                                   ),
                                 ),
                                 const SizedBox(
                                   width: 4,
                                 ),
                                 Material(
-                                  color: Colors
-                                      .transparent,
+                                  color:
+                                      Colors.transparent,
                                   child: InkWell(
-                                    onTap: () {
-                                      _submitComment(
-                                        controller,
-                                        setSheetState,
-                                      );
-                                    },
+                                    onTap:
+                                        submitComment,
                                     borderRadius:
                                         BorderRadius
                                             .circular(
@@ -472,8 +536,7 @@ class _OnlineQuestionScreenState
                                             .send_rounded,
                                         size: 20,
                                         color:
-                                            AppColors
-                                                .primary,
+                                            AppColors.primary,
                                       ),
                                     ),
                                   ),
@@ -496,35 +559,11 @@ class _OnlineQuestionScreenState
     );
   }
 
-  void _submitComment(
-    TextEditingController controller,
-    StateSetter setSheetState,
-  ) {
-    final text =
-        controller.text.trim();
-
-    if (text.isEmpty) {
+  Future<void> _confirm() async {
+    if (_isQuestionOwner) {
       return;
     }
 
-    _commentStore.add(
-      questionId:
-          widget.question.id,
-      text: text,
-    );
-
-    _socialService.notifyComment(
-      question: widget.question,
-    );
-
-    controller.clear();
-
-    Haptics.light();
-
-    setSheetState(() {});
-  }
-
-  Future<void> _confirm() async {
     final selectedOptionId =
         _selectedOptionId;
 
@@ -538,12 +577,14 @@ class _OnlineQuestionScreenState
 
     Haptics.light();
 
-    final result = await Navigator.push<bool>(
+    final result =
+        await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) =>
             OnlineResultScreen(
-          question: widget.question,
+          question:
+              widget.question,
           selectedOptionId:
               selectedOptionId,
           isLastQuestion:
@@ -557,7 +598,10 @@ class _OnlineQuestionScreenState
     }
 
     if (result == true) {
-      Navigator.pop(context, true);
+      Navigator.pop(
+        context,
+        true,
+      );
     }
   }
 
@@ -593,7 +637,9 @@ class _OnlineQuestionScreenState
           AppColors.background,
       appBar: AppBar(
         title:
-            const Text('سؤال أونلاين'),
+            const Text(
+          'سؤال أونلاين',
+        ),
       ),
       body: Stack(
         children: [
@@ -605,7 +651,6 @@ class _OnlineQuestionScreenState
               0.6,
             ),
           ),
-
           SafeArea(
             child:
                 SingleChildScrollView(
@@ -662,17 +707,18 @@ class _OnlineQuestionScreenState
                                 ),
                               );
                             },
-                            child: Padding(
+                            child:
+                                Padding(
                               padding:
                                   const EdgeInsets
                                       .symmetric(
                                 vertical: 8,
                               ),
-                              child: Text(
+                              child:
+                                  Text(
                                 widget.publisher.name,
                                 style:
-                                    AppTextStyles
-                                        .username,
+                                    AppTextStyles.username,
                               ),
                             ),
                           ),
@@ -686,9 +732,9 @@ class _OnlineQuestionScreenState
                           ),
                           decoration:
                               BoxDecoration(
-                            color:
-                                category.color
-                                    .withOpacity(
+                            color: category
+                                .color
+                                .withOpacity(
                               0.15,
                             ),
                             borderRadius:
@@ -702,7 +748,8 @@ class _OnlineQuestionScreenState
                                   category.color,
                             ),
                           ),
-                          child: Text(
+                          child:
+                              Text(
                             category.name,
                             style:
                                 AppTextStyles
@@ -734,9 +781,9 @@ class _OnlineQuestionScreenState
                     height: 18,
                   ),
 
-                  // Combined Like + Comment bar
                   Center(
-                    child: Container(
+                    child:
+                        Container(
                       padding:
                           const EdgeInsets
                               .symmetric(
@@ -747,40 +794,45 @@ class _OnlineQuestionScreenState
                           BoxDecoration(
                         color: AppColors
                             .surface
-                            .withOpacity(0.72),
+                            .withOpacity(
+                          0.72,
+                        ),
                         borderRadius:
-                            BorderRadius
-                                .circular(999),
+                            BorderRadius.circular(
+                          999,
+                        ),
                         border:
                             Border.all(
                           color:
                               AppColors.divider,
                         ),
                       ),
-                      child: Row(
+                      child:
+                          Row(
                         mainAxisSize:
                             MainAxisSize.min,
                         children: [
                           InkWell(
-                            onTap: isOwner
-                                ? null
-                                : _toggleLike,
+                            onTap:
+                                isOwner
+                                    ? null
+                                    : _toggleLike,
                             borderRadius:
-                                BorderRadius
-                                    .circular(
+                                BorderRadius.circular(
                               999,
                             ),
-                            child: Padding(
+                            child:
+                                Padding(
                               padding:
                                   const EdgeInsets
                                       .symmetric(
                                 horizontal: 8,
                                 vertical: 5,
                               ),
-                              child: Row(
+                              child:
+                                  Row(
                                 mainAxisSize:
-                                    MainAxisSize
-                                        .min,
+                                    MainAxisSize.min,
                                 children: [
                                   Icon(
                                     isLiked
@@ -801,8 +853,7 @@ class _OnlineQuestionScreenState
                                   Text(
                                     '$likeCount',
                                     style:
-                                        AppTextStyles
-                                            .caption,
+                                        AppTextStyles.caption,
                                   ),
                                 ],
                               ),
@@ -815,31 +866,31 @@ class _OnlineQuestionScreenState
                                 AppColors.divider,
                           ),
                           InkWell(
-                            onTap: _openComments,
+                            onTap:
+                                _openComments,
                             borderRadius:
-                                BorderRadius
-                                    .circular(
+                                BorderRadius.circular(
                               999,
                             ),
-                            child: Padding(
+                            child:
+                                Padding(
                               padding:
                                   const EdgeInsets
                                       .symmetric(
                                 horizontal: 8,
                                 vertical: 5,
                               ),
-                              child: Row(
+                              child:
+                                  Row(
                                 mainAxisSize:
-                                    MainAxisSize
-                                        .min,
+                                    MainAxisSize.min,
                                 children: [
                                   const Icon(
                                     Icons
                                         .chat_bubble_outline_rounded,
                                     size: 18,
                                     color:
-                                        AppColors
-                                            .textSecondary,
+                                        AppColors.textSecondary,
                                   ),
                                   const SizedBox(
                                     width: 5,
@@ -847,8 +898,7 @@ class _OnlineQuestionScreenState
                                   Text(
                                     '$commentCount',
                                     style:
-                                        AppTextStyles
-                                            .caption,
+                                        AppTextStyles.caption,
                                   ),
                                 ],
                               ),
@@ -870,13 +920,15 @@ class _OnlineQuestionScreenState
                           const EdgeInsets.all(
                         18,
                       ),
-                      child: Column(
+                      child:
+                          Column(
                         children: [
                           const Icon(
-                            Icons.visibility_outlined,
+                            Icons
+                                .visibility_outlined,
                             size: 30,
-                            color: AppColors
-                                .textSecondary,
+                            color:
+                                AppColors.textSecondary,
                           ),
                           const SizedBox(
                             height: 8,
@@ -934,7 +986,8 @@ class _OnlineQuestionScreenState
                                 horizontal: 20,
                                 vertical: 16,
                               ),
-                              child: Row(
+                              child:
+                                  Row(
                                 children: [
                                   Icon(
                                     isSelected
@@ -942,10 +995,11 @@ class _OnlineQuestionScreenState
                                             .radio_button_checked
                                         : Icons
                                             .radio_button_off,
-                                    color: isSelected
-                                        ? _categoryColor
-                                        : AppColors
-                                            .textSecondary,
+                                    color:
+                                        isSelected
+                                            ? _categoryColor
+                                            : AppColors
+                                                .textSecondary,
                                   ),
                                   const SizedBox(
                                     width: 12,
@@ -966,9 +1020,11 @@ class _OnlineQuestionScreenState
                         );
                       },
                     ),
+
                     const SizedBox(
                       height: 24,
                     ),
+
                     ElevatedButton(
                       onPressed:
                           _selectedOptionId ==
@@ -976,8 +1032,7 @@ class _OnlineQuestionScreenState
                               ? null
                               : _confirm,
                       style:
-                          ElevatedButton
-                              .styleFrom(
+                          ElevatedButton.styleFrom(
                         backgroundColor:
                             AppColors
                                 .titanium,
@@ -994,7 +1049,9 @@ class _OnlineQuestionScreenState
                             RoundedRectangleBorder(
                           borderRadius:
                               BorderRadius
-                                  .circular(18),
+                                  .circular(
+                            18,
+                          ),
                         ),
                       ),
                       child:
@@ -1009,6 +1066,176 @@ class _OnlineQuestionScreenState
           ),
         ],
       ),
+    );
+  }
+}
+
+class _CommentThread
+    extends StatelessWidget {
+  const _CommentThread({
+    required this.comment,
+    required this.replies,
+    required this.onReply,
+    required this.onOpenProfile,
+  });
+
+  final QuestionComment comment;
+  final List<QuestionComment> replies;
+  final VoidCallback onReply;
+  final ValueChanged<String> onOpenProfile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.stretch,
+      children: [
+        LiquidGlassContainer(
+          opacity: 0.055,
+          padding:
+              const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              InkWell(
+                onTap: () =>
+                    onOpenProfile(
+                  comment.authorId,
+                ),
+                borderRadius:
+                    BorderRadius.circular(
+                  8,
+                ),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    vertical: 2,
+                  ),
+                  child: Text(
+                    comment.authorName,
+                    style:
+                        AppTextStyles.username
+                            .copyWith(
+                      color:
+                          AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(
+                height: 5,
+              ),
+              Text(
+                comment.text,
+                style:
+                    AppTextStyles.bodyMedium,
+              ),
+              const SizedBox(
+                height: 7,
+              ),
+              TextButton(
+                onPressed: onReply,
+                style:
+                    TextButton.styleFrom(
+                  padding:
+                      EdgeInsets.zero,
+                  minimumSize:
+                      const Size(
+                    0,
+                    32,
+                  ),
+                  tapTargetSize:
+                      MaterialTapTargetSize
+                          .shrinkWrap,
+                ),
+                child:
+                    const Text(
+                  'رد',
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        if (replies.isNotEmpty)
+          Padding(
+            padding:
+                const EdgeInsetsDirectional.only(
+              start: 20,
+              top: 8,
+            ),
+            child: Column(
+              children: replies
+                  .map(
+                (reply) {
+                  return Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      bottom: 8,
+                    ),
+                    child:
+                        LiquidGlassContainer(
+                      opacity:
+                          0.035,
+                      padding:
+                          const EdgeInsets.all(
+                        10,
+                      ),
+                      child:
+                          Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment
+                                .start,
+                        children: [
+                          InkWell(
+                            onTap: () =>
+                                onOpenProfile(
+                              reply.authorId,
+                            ),
+                            borderRadius:
+                                BorderRadius
+                                    .circular(
+                              8,
+                            ),
+                            child:
+                                Padding(
+                              padding:
+                                  const EdgeInsets
+                                      .symmetric(
+                                vertical: 2,
+                              ),
+                              child:
+                                  Text(
+                                reply.authorName,
+                                style:
+                                    AppTextStyles
+                                        .username
+                                        .copyWith(
+                                  color:
+                                      AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 4,
+                          ),
+                          Text(
+                            reply.text,
+                            style:
+                                AppTextStyles
+                                    .bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ).toList(),
+            ),
+          ),
+      ],
     );
   }
 }
