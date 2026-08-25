@@ -10,6 +10,10 @@ class CommentStore {
   final List<QuestionComment> _comments =
       <QuestionComment>[];
 
+  // ─────────────────────────────────────
+  // Queries
+  // ─────────────────────────────────────
+
   List<QuestionComment> forQuestion(
     String questionId,
   ) {
@@ -78,6 +82,22 @@ class CommentStore {
         .length;
   }
 
+  QuestionComment? findById(
+    String commentId,
+  ) {
+    for (final comment in _comments) {
+      if (comment.id == commentId) {
+        return comment;
+      }
+    }
+
+    return null;
+  }
+
+  // ─────────────────────────────────────
+  // Create
+  // ─────────────────────────────────────
+
   QuestionComment add({
     required String questionId,
     required String text,
@@ -90,6 +110,30 @@ class CommentStore {
       throw ArgumentError(
         'Comment text cannot be empty.',
       );
+    }
+
+    QuestionComment? parent;
+
+    if (parentCommentId != null) {
+      parent = findById(
+        parentCommentId,
+      );
+
+      // The parent must exist.
+      if (parent == null) {
+        throw ArgumentError(
+          'Parent comment does not exist.',
+        );
+      }
+
+      // A reply must stay inside
+      // the same question thread.
+      if (parent.questionId !=
+          questionId) {
+        throw ArgumentError(
+          'Parent comment belongs to another question.',
+        );
+      }
     }
 
     final user =
@@ -110,38 +154,63 @@ class CommentStore {
       createdAt:
           DateTime.now(),
       parentCommentId:
-          parentCommentId,
+          parent?.id,
     );
 
-    _comments.add(comment);
+    _comments.add(
+      comment,
+    );
 
     return comment;
   }
 
+  // ─────────────────────────────────────
+  // Remove
+  // ─────────────────────────────────────
+
   void remove(
     String commentId,
   ) {
-    final childIds = _comments
-        .where(
-          (comment) =>
-              comment.parentCommentId ==
-              commentId,
-        )
-        .map(
-          (comment) =>
+    final idsToRemove =
+        <String>{commentId};
+
+    bool foundNewChild;
+
+    do {
+      foundNewChild = false;
+
+      for (final comment
+          in _comments) {
+        final parentId =
+            comment.parentCommentId;
+
+        if (parentId != null &&
+            idsToRemove.contains(
+              parentId,
+            ) &&
+            !idsToRemove.contains(
               comment.id,
-        )
-        .toSet();
+            )) {
+          idsToRemove.add(
+            comment.id,
+          );
+
+          foundNewChild = true;
+        }
+      }
+    } while (foundNewChild);
 
     _comments.removeWhere(
       (comment) =>
-          comment.id ==
-              commentId ||
-          childIds.contains(
-            comment.id,
-          ),
+          idsToRemove.contains(
+        comment.id,
+      ),
     );
   }
+
+  // ─────────────────────────────────────
+  // Reset
+  // ─────────────────────────────────────
 
   void clear() {
     _comments.clear();
