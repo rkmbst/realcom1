@@ -280,6 +280,11 @@ class _SocialReplyThreadSheetState
                                   widget.parentComment,
                               likeCount:
                                   likeCount,
+                              replyCount:
+                                  _commentStore
+                                      .replyCount(
+                                reply.id,
+                              ),
                               isLiked:
                                   isLiked,
                               onLike: () {
