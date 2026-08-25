@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/social/comment_like_store.dart';
+import '../../core/social/comment_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/question_comment.dart';
@@ -40,7 +41,9 @@ class _SocialCommentCardState
   );
 
   int get _replyCount =>
-      widget.comment.replyCount;
+      CommentStore.instance.replyCount(
+    widget.comment.id,
+  );
 
   void _toggleLike() {
     setState(() {
