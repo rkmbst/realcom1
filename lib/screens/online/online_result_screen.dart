@@ -10,10 +10,10 @@ import '../../core/utils/categories.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/mock_online_data.dart';
 import '../../models/question.dart';
-import '../../models/question_comment.dart';
 import '../../models/question_option.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
+import '../../widgets/social/comment_sheet.dart';
 import '../profile/profile_screen.dart';
 
 class OnlineResultScreen extends StatefulWidget {
@@ -46,12 +46,6 @@ class _OnlineResultScreenState
 
   final _session =
       AuthSession.instance;
-
-  final _commentController =
-      TextEditingController();
-
-  final _commentFocusNode =
-      FocusNode();
 
   late final Map<String, int> _results;
   late final List<QuestionOption> _sortedOptions;
@@ -88,13 +82,6 @@ class _OnlineResultScreenState
         AppCategories.byId(
       widget.question.categoryId,
     ).color;
-  }
-
-  @override
-  void dispose() {
-    _commentController.dispose();
-    _commentFocusNode.dispose();
-    super.dispose();
   }
 
   bool get _isLiked =>
@@ -136,33 +123,6 @@ class _OnlineResultScreenState
         question: widget.question,
       );
     }
-
-    Haptics.light();
-
-    setState(() {});
-  }
-
-  void _addComment() {
-    final text =
-        _commentController.text.trim();
-
-    if (text.isEmpty) {
-      _commentFocusNode.requestFocus();
-      return;
-    }
-
-    _commentStore.add(
-      questionId:
-          widget.question.id,
-      text: text,
-    );
-
-    _socialService.notifyComment(
-      question: widget.question,
-    );
-
-    _commentController.clear();
-    _commentFocusNode.unfocus();
 
     Haptics.light();
 
@@ -245,11 +205,6 @@ class _OnlineResultScreenState
 
     final commentCount =
         _commentStore.countForQuestion(
-      widget.question.id,
-    );
-
-    final comments =
-        _commentStore.forQuestion(
       widget.question.id,
     );
 
@@ -489,190 +444,73 @@ class _OnlineResultScreenState
                                       AppColors
                                           .divider,
                                 ),
-                                Padding(
-                                  padding:
-                                      const EdgeInsets
-                                          .symmetric(
-                                    horizontal: 8,
-                                    vertical: 5,
+                                InkWell(
+                                  onTap:
+                                      () {
+                                    SocialCommentSheet
+                                        .show(
+                                      context,
+                                      question:
+                                          widget
+                                              .question,
+                                      onChanged:
+                                          () {
+                                        if (mounted) {
+                                          setState(
+                                            () {},
+                                          );
+                                        }
+                                      },
+                                    );
+                                  },
+                                  borderRadius:
+                                      BorderRadius
+                                          .circular(
+                                    999,
                                   ),
-                                  child: Row(
-                                    mainAxisSize:
-                                        MainAxisSize
-                                            .min,
-                                    children: [
-                                      const Icon(
-                                        Icons
-                                            .chat_bubble_outline_rounded,
-                                        size: 18,
-                                        color:
-                                            AppColors
-                                                .textSecondary,
-                                      ),
-                                      const SizedBox(
-                                        width: 5,
-                                      ),
-                                      Text(
-                                        '$commentCount',
-                                        style:
-                                            AppTextStyles
-                                                .caption,
-                                      ),
-                                    ],
+                                  child:
+                                      Padding(
+                                    padding:
+                                        const EdgeInsets
+                                            .symmetric(
+                                      horizontal:
+                                          8,
+                                      vertical:
+                                          5,
+                                    ),
+                                    child:
+                                        Row(
+                                      mainAxisSize:
+                                          MainAxisSize
+                                              .min,
+                                      children: [
+                                        const Icon(
+                                          Icons
+                                              .chat_bubble_outline_rounded,
+                                          size:
+                                              18,
+                                          color:
+                                              AppColors
+                                                  .textSecondary,
+                                        ),
+                                        const SizedBox(
+                                          width:
+                                              5,
+                                        ),
+                                        Text(
+                                          '$commentCount',
+                                          style:
+                                              AppTextStyles
+                                                  .caption,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-
-                        const SizedBox(
-                          height: 18,
-                        ),
-
-                        LiquidGlassContainer(
-                          padding:
-                              const EdgeInsets
-                                  .symmetric(
-                            horizontal: 16,
-                            vertical: 6,
-                          ),
-                          child: Row(
-                            crossAxisAlignment:
-                                CrossAxisAlignment
-                                    .end,
-                            children: [
-                              Expanded(
-                                child:
-                                    TextField(
-                                  controller:
-                                      _commentController,
-                                  focusNode:
-                                      _commentFocusNode,
-                                  minLines: 1,
-                                  maxLines: 4,
-                                  textInputAction:
-                                      TextInputAction
-                                          .newline,
-                                  style:
-                                      AppTextStyles
-                                          .bodyMedium,
-                                  decoration:
-                                      const InputDecoration(
-                                    hintText:
-                                        'أضف تعليقًا...',
-                                    hintStyle:
-                                        AppTextStyles
-                                            .caption,
-                                    border:
-                                        InputBorder
-                                            .none,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                onPressed:
-                                    _addComment,
-                                icon:
-                                    const Icon(
-                                  Icons
-                                      .send_rounded,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        if (comments
-                            .isNotEmpty) ...[
-                          const SizedBox(
-                            height: 20,
-                          ),
-                          Text(
-                            'التعليقات',
-                            style:
-                                AppTextStyles
-                                    .titleMedium,
-                          ),
-                          const SizedBox(
-                            height: 12,
-                          ),
-                          ...comments.map(
-                            (comment) =>
-                                Padding(
-                              padding:
-                                  const EdgeInsets
-                                      .only(
-                                bottom: 10,
-                              ),
-                              child:
-                                  LiquidGlassContainer(
-                                opacity:
-                                    0.055,
-                                child:
-                                    Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment
-                                          .start,
-                                  children: [
-                                    InkWell(
-                                      onTap:
-                                          () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder:
-                                                (_) =>
-                                                    ProfileScreen(
-                                              userId:
-                                                  comment.authorId,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      borderRadius:
-                                          BorderRadius
-                                              .circular(
-                                        8,
-                                      ),
-                                      child:
-                                          Padding(
-                                        padding:
-                                            const EdgeInsets
-                                                .symmetric(
-                                          vertical:
-                                              2,
-                                        ),
-                                        child:
-                                            Text(
-                                          comment
-                                              .authorName,
-                                          style:
-                                              AppTextStyles
-                                                  .username
-                                                  .copyWith(
-                                            color:
-                                                AppColors.primary,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(
-                                      height: 5,
-                                    ),
-                                    Text(
-                                      comment
-                                          .text,
-                                      style:
-                                          AppTextStyles
-                                              .bodyMedium,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),
