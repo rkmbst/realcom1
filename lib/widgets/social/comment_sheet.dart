@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/online/feed_interaction_store.dart';
 import '../../core/social/comment_store.dart';
 import '../../core/social/question_social_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -8,8 +7,8 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/haptics.dart';
 import '../../models/question.dart';
 import '../../models/question_comment.dart';
-import '../liquid_glass_container.dart';
 import 'comment_card.dart';
+import '../liquid_glass_container.dart';
 
 class SocialCommentSheet extends StatefulWidget {
   const SocialCommentSheet({
@@ -47,8 +46,7 @@ class SocialCommentSheet extends StatefulWidget {
 
 class _SocialCommentSheetState
     extends State<SocialCommentSheet> {
-  final _commentStore =
-      CommentStore.instance;
+  final _commentStore = CommentStore.instance;
 
   final _socialService =
       QuestionSocialService.instance;
@@ -86,15 +84,12 @@ class _SocialCommentSheetState
       return;
     }
 
-    final parentId =
-        _replyToCommentId;
+    final parentId = _replyToCommentId;
 
     _commentStore.add(
-      questionId:
-          widget.question.id,
+      questionId: widget.question.id,
       text: text,
-      parentCommentId:
-          parentId,
+      parentCommentId: parentId,
     );
 
     if (parentId == null) {
@@ -149,9 +144,9 @@ class _SocialCommentSheetState
           top: 12,
           bottom:
               MediaQuery.of(context)
-                  .viewInsets
-                  .bottom +
-              12,
+                      .viewInsets
+                      .bottom +
+                  12,
         ),
         child: Container(
           height:
@@ -288,15 +283,8 @@ class _SocialCommentSheetState
                             final comment =
                                 rootComments[index];
 
-                            final replies =
-                                _commentStore
-                                    .repliesFor(
-                              comment.id,
-                            );
-
                             return SocialCommentCard(
                               comment: comment,
-                              replies: replies,
                               onReply: () =>
                                   _startReply(
                                 comment,
@@ -342,7 +330,7 @@ class _SocialCommentSheetState
                             hintText:
                                 replyTarget == null
                                     ? 'اكتب تعليقك...'
-                                    : 'اكتب ردك...',
+                                    : 'الرد على @${replyTarget.authorName}...',
                             hintStyle:
                                 AppTextStyles.bodyMedium
                                     .copyWith(
