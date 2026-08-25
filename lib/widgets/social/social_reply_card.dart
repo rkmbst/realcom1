@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/question_comment.dart';
+import 'social_reply_thread_sheet.dart';
 import 'social_user_name.dart';
 
 class SocialReplyCard extends StatelessWidget {
@@ -11,6 +12,7 @@ class SocialReplyCard extends StatelessWidget {
     required this.reply,
     required this.parent,
     required this.likeCount,
+    required this.replyCount,
     required this.isLiked,
     required this.onLike,
     required this.onReply,
@@ -18,8 +20,12 @@ class SocialReplyCard extends StatelessWidget {
 
   final QuestionComment reply;
   final QuestionComment parent;
+
   final int likeCount;
+  final int replyCount;
+
   final bool isLiked;
+
   final VoidCallback onLike;
   final VoidCallback onReply;
 
@@ -56,12 +62,16 @@ class SocialReplyCard extends StatelessWidget {
               ),
             ],
           ),
+
           const SizedBox(height: 7),
+
           Text(
             reply.text,
             style: AppTextStyles.bodyMedium,
           ),
+
           const SizedBox(height: 9),
+
           Row(
             children: [
               InkWell(
@@ -81,13 +91,11 @@ class SocialReplyCard extends StatelessWidget {
                       Icon(
                         isLiked
                             ? Icons.favorite_rounded
-                            : Icons
-                                .favorite_border_rounded,
+                            : Icons.favorite_border_rounded,
                         size: 17,
                         color: isLiked
                             ? AppColors.like
-                            : AppColors
-                                .textSecondary,
+                            : AppColors.textSecondary,
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -99,7 +107,9 @@ class SocialReplyCard extends StatelessWidget {
                   ),
                 ),
               ),
+
               const SizedBox(width: 8),
+
               TextButton(
                 onPressed: onReply,
                 style: TextButton.styleFrom(
@@ -114,9 +124,38 @@ class SocialReplyCard extends StatelessWidget {
                       MaterialTapTargetSize
                           .shrinkWrap,
                 ),
-                child:
-                    const Text('رد'),
+                child: const Text('رد'),
               ),
+
+              if (replyCount > 0) ...[
+                const SizedBox(width: 4),
+
+                InkWell(
+                  onTap: () {
+                    SocialReplyThreadSheet.show(
+                      context,
+                      parentComment: reply,
+                    );
+                  },
+                  borderRadius:
+                      BorderRadius.circular(999),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 4,
+                    ),
+                    child: Text(
+                      '$replyCount ${replyCount == 1 ? 'رد' : 'ردود'}',
+                      style:
+                          AppTextStyles.caption.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ],
