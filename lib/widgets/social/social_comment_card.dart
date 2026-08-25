@@ -1,28 +1,56 @@
 import 'package:flutter/material.dart';
 
+import '../../core/social/comment_like_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/question_comment.dart';
 import 'social_replies_sheet.dart';
 import 'social_user_name.dart';
 
-class SocialCommentCard extends StatelessWidget {
+class SocialCommentCard extends StatefulWidget {
   const SocialCommentCard({
     super.key,
     required this.comment,
-    required this.replyCount,
-    required this.likeCount,
-    required this.isLiked,
-    required this.onLike,
     required this.onReply,
+    this.onLike,
   });
 
   final QuestionComment comment;
-  final int replyCount;
-  final int likeCount;
-  final bool isLiked;
-  final VoidCallback onLike;
   final VoidCallback onReply;
+  final VoidCallback? onLike;
+
+  @override
+  State<SocialCommentCard> createState() =>
+      _SocialCommentCardState();
+}
+
+class _SocialCommentCardState
+    extends State<SocialCommentCard> {
+  final _likeStore =
+      CommentLikeStore.instance;
+
+  bool get _isLiked =>
+      _likeStore.isLiked(
+    widget.comment.id,
+  );
+
+  int get _likeCount =>
+      _likeStore.likeCount(
+    widget.comment.id,
+  );
+
+  int get _replyCount =>
+      widget.comment.replyCount;
+
+  void _toggleLike() {
+    setState(() {
+      _likeStore.toggleLike(
+        widget.comment.id,
+      );
+    });
+
+    widget.onLike?.call();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,19 +67,19 @@ class SocialCommentCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SocialUserName(
-            userId: comment.authorId,
-            userName: comment.authorName,
+            userId: widget.comment.authorId,
+            userName: widget.comment.authorName,
           ),
           const SizedBox(height: 7),
           Text(
-            comment.text,
+            widget.comment.text,
             style: AppTextStyles.bodyMedium,
           ),
           const SizedBox(height: 10),
           Row(
             children: [
               InkWell(
-                onTap: onLike,
+                onTap: _toggleLike,
                 borderRadius: BorderRadius.circular(999),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -62,17 +90,17 @@ class SocialCommentCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        isLiked
+                        _isLiked
                             ? Icons.favorite_rounded
                             : Icons.favorite_border_rounded,
                         size: 18,
-                        color: isLiked
+                        color: _isLiked
                             ? AppColors.like
                             : AppColors.textSecondary,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '$likeCount',
+                        '$_likeCount',
                         style: AppTextStyles.caption,
                       ),
                     ],
@@ -81,7 +109,7 @@ class SocialCommentCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               TextButton(
-                onPressed: onReply,
+                onPressed: widget.onReply,
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 7,
@@ -93,13 +121,13 @@ class SocialCommentCard extends StatelessWidget {
                 ),
                 child: const Text('رد'),
               ),
-              if (replyCount > 0) ...[
+              if (_replyCount > 0) ...[
                 const SizedBox(width: 4),
                 InkWell(
                   onTap: () {
                     SocialRepliesSheet.show(
                       context,
-                      rootComment: comment,
+                      rootComment: widget.comment,
                     );
                   },
                   borderRadius:
@@ -111,7 +139,7 @@ class SocialCommentCard extends StatelessWidget {
                       vertical: 4,
                     ),
                     child: Text(
-                      '$replyCount ${replyCount == 1 ? 'رد' : 'ردود'}',
+                      '$_replyCount ${_replyCount == 1 ? 'رد' : 'ردود'}',
                       style:
                           AppTextStyles.caption.copyWith(
                         color: AppColors.primary,
