@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/question.dart';
 import '../../models/question_comment.dart';
+import '../liquid_glass_container.dart';  // ← أضف هذا السطر
 import 'social_comment_card.dart';
 
 class SocialCommentSheet {
