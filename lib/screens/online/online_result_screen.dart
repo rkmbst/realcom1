@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/auth/auth_session.dart';
 import '../../core/online/feed_interaction_store.dart';
 import '../../core/social/comment_store.dart';
 import '../../core/social/question_social_service.dart';
@@ -9,9 +10,11 @@ import '../../core/utils/categories.dart';
 import '../../core/utils/haptics.dart';
 import '../../data/mock_online_data.dart';
 import '../../models/question.dart';
+import '../../models/question_comment.dart';
 import '../../models/question_option.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
+import '../profile/profile_screen.dart';
 
 class OnlineResultScreen extends StatefulWidget {
   final Question question;
@@ -41,6 +44,9 @@ class _OnlineResultScreenState
   final _socialService =
       QuestionSocialService.instance;
 
+  final _session =
+      AuthSession.instance;
+
   final _commentController =
       TextEditingController();
 
@@ -50,6 +56,12 @@ class _OnlineResultScreenState
   late final Map<String, int> _results;
   late final List<QuestionOption> _sortedOptions;
   late final Color _categoryColor;
+
+  bool get _isQuestionOwner {
+    return widget.question.authorId != null &&
+        widget.question.authorId ==
+            _session.currentUser.id;
+  }
 
   @override
   void initState() {
@@ -90,10 +102,6 @@ class _OnlineResultScreenState
     widget.question.id,
   );
 
-  List<QuestionOption>
-      get _options =>
-          widget.question.options;
-
   bool get _isQuiz =>
       widget.question.type ==
       QuestionType.quiz;
@@ -110,6 +118,10 @@ class _OnlineResultScreenState
   }
 
   void _toggleLike() {
+    if (_isQuestionOwner) {
+      return;
+    }
+
     final wasLiked =
         _feedInteractions.isLiked(
       widget.question.id,
@@ -225,6 +237,16 @@ class _OnlineResultScreenState
         _results[
               widget.selectedOptionId] ??
             0;
+
+    final likeCount =
+        _feedInteractions.likeCount(
+      widget.question.id,
+    );
+
+    final commentCount =
+        _commentStore.countForQuestion(
+      widget.question.id,
+    );
 
     final comments =
         _commentStore.forQuestion(
@@ -381,52 +403,127 @@ class _OnlineResultScreenState
                           height: 24,
                         ),
 
-                        Row(
-                          children: [
-                            Expanded(
-                              child:
-                                  _SocialButton(
-                                icon:
-                                    _isLiked
-                                        ? Icons
-                                            .favorite_rounded
-                                        : Icons
-                                            .favorite_border_rounded,
-                                label:
-                                    _isLiked
-                                        ? 'أعجبني'
-                                        : 'إعجاب',
-                                iconColor:
-                                    _isLiked
-                                        ? AppColors
-                                            .like
-                                        : AppColors
-                                            .textPrimary,
-                                onTap:
-                                    _toggleLike,
+                        // Combined Like + Comment bar
+                        Center(
+                          child: Container(
+                            padding:
+                                const EdgeInsets
+                                    .symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            decoration:
+                                BoxDecoration(
+                              color: AppColors
+                                  .surface
+                                  .withOpacity(0.72),
+                              borderRadius:
+                                  BorderRadius
+                                      .circular(
+                                999,
                               ),
-                            ),
-                            const SizedBox(
-                              width: 12,
-                            ),
-                            Expanded(
-                              child:
-                                  _SocialButton(
-                                icon:
-                                    Icons
-                                        .chat_bubble_outline_rounded,
-                                label:
-                                    '${comments.length} تعليق',
-                                iconColor:
+                              border:
+                                  Border.all(
+                                color:
                                     AppColors
-                                        .textPrimary,
-                                onTap: () {
-                                  _commentFocusNode
-                                      .requestFocus();
-                                },
+                                        .divider,
                               ),
                             ),
-                          ],
+                            child: Row(
+                              mainAxisSize:
+                                  MainAxisSize
+                                      .min,
+                              children: [
+                                InkWell(
+                                  onTap:
+                                      _isQuestionOwner
+                                          ? null
+                                          : _toggleLike,
+                                  borderRadius:
+                                      BorderRadius
+                                          .circular(
+                                    999,
+                                  ),
+                                  child: Padding(
+                                    padding:
+                                        const EdgeInsets
+                                            .symmetric(
+                                      horizontal: 8,
+                                      vertical: 5,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize:
+                                          MainAxisSize
+                                              .min,
+                                      children: [
+                                        Icon(
+                                          _isLiked
+                                              ? Icons
+                                                  .favorite_rounded
+                                              : Icons
+                                                  .favorite_border_rounded,
+                                          size: 19,
+                                          color: _isLiked
+                                              ? AppColors
+                                                  .like
+                                              : AppColors
+                                                  .textSecondary,
+                                        ),
+                                        const SizedBox(
+                                          width: 5,
+                                        ),
+                                        Text(
+                                          '$likeCount',
+                                          style:
+                                              AppTextStyles
+                                                  .caption,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 18,
+                                  color:
+                                      AppColors
+                                          .divider,
+                                ),
+                                Padding(
+                                  padding:
+                                      const EdgeInsets
+                                          .symmetric(
+                                    horizontal: 8,
+                                    vertical: 5,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize:
+                                        MainAxisSize
+                                            .min,
+                                    children: [
+                                      const Icon(
+                                        Icons
+                                            .chat_bubble_outline_rounded,
+                                        size: 18,
+                                        color:
+                                            AppColors
+                                                .textSecondary,
+                                      ),
+                                      const SizedBox(
+                                        width: 5,
+                                      ),
+                                      Text(
+                                        '$commentCount',
+                                        style:
+                                            AppTextStyles
+                                                .caption,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
 
                         const SizedBox(
@@ -513,11 +610,64 @@ class _OnlineResultScreenState
                                 opacity:
                                     0.055,
                                 child:
+                                    Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment
+                                          .start,
+                                  children: [
+                                    InkWell(
+                                      onTap:
+                                          () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder:
+                                                (_) =>
+                                                    ProfileScreen(
+                                              userId:
+                                                  comment.authorId,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      borderRadius:
+                                          BorderRadius
+                                              .circular(
+                                        8,
+                                      ),
+                                      child:
+                                          Padding(
+                                        padding:
+                                            const EdgeInsets
+                                                .symmetric(
+                                          vertical:
+                                              2,
+                                        ),
+                                        child:
+                                            Text(
+                                          comment
+                                              .authorName,
+                                          style:
+                                              AppTextStyles
+                                                  .username
+                                                  .copyWith(
+                                            color:
+                                                AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      height: 5,
+                                    ),
                                     Text(
-                                  comment.text,
-                                  style:
-                                      AppTextStyles
-                                          .bodyMedium,
+                                      comment
+                                          .text,
+                                      style:
+                                          AppTextStyles
+                                              .bodyMedium,
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -728,64 +878,5 @@ class _OnlineResultScreenState
         );
       },
     ).toList();
-  }
-}
-
-class _SocialButton
-    extends StatelessWidget {
-  const _SocialButton({
-    required this.icon,
-    required this.label,
-    required this.iconColor,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color iconColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return SizedBox(
-      height: 48,
-      child:
-          OutlinedButton.icon(
-        onPressed: onTap,
-        icon: Icon(
-          icon,
-          color: iconColor,
-          size: 21,
-        ),
-        label: Text(
-          label,
-          style:
-              AppTextStyles.button
-                  .copyWith(
-            color:
-                AppColors.textPrimary,
-          ),
-        ),
-        style:
-            OutlinedButton.styleFrom(
-          foregroundColor:
-              AppColors.textPrimary,
-          side: BorderSide(
-            color: AppColors
-                .titaniumBorder
-                .withOpacity(0.50),
-          ),
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(
-              16,
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
