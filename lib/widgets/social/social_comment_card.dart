@@ -4,7 +4,7 @@ import '../../core/social/comment_like_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/question_comment.dart';
-import 'social_replies_sheet.dart';
+import 'social_reply_thread_sheet.dart';
 import 'social_user_name.dart';
 
 class SocialCommentCard extends StatefulWidget {
@@ -125,9 +125,9 @@ class _SocialCommentCardState
                 const SizedBox(width: 4),
                 InkWell(
                   onTap: () {
-                    SocialRepliesSheet.show(
+                    SocialReplyThreadSheet.show(
                       context,
-                      rootComment: widget.comment,
+                      parentComment: widget.comment,
                     );
                   },
                   borderRadius:
