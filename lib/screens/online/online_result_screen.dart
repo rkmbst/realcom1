@@ -2,31 +2,30 @@ import 'package:flutter/material.dart';
 
 import '../../core/auth/auth_session.dart';
 import '../../core/online/feed_interaction_store.dart';
+import '../../core/online/vote_store.dart';
 import '../../core/social/comment_store.dart';
 import '../../core/social/question_social_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/categories.dart';
 import '../../core/utils/haptics.dart';
-import '../../data/mock_online_data.dart';
 import '../../models/question.dart';
 import '../../models/question_option.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
 import '../../widgets/social/comment_sheet.dart';
-import '../profile/profile_screen.dart';
 
 class OnlineResultScreen extends StatefulWidget {
-  final Question question;
-  final String selectedOptionId;
-  final bool isLastQuestion;
-
   const OnlineResultScreen({
     super.key,
     required this.question,
     required this.selectedOptionId,
     required this.isLastQuestion,
   });
+
+  final Question question;
+  final String selectedOptionId;
+  final bool isLastQuestion;
 
   @override
   State<OnlineResultScreen> createState() =>
@@ -38,6 +37,9 @@ class _OnlineResultScreenState
   final _feedInteractions =
       FeedInteractionStore.instance;
 
+  final _voteStore =
+      VoteStore.instance;
+
   final _commentStore =
       CommentStore.instance;
 
@@ -47,8 +49,10 @@ class _OnlineResultScreenState
   final _session =
       AuthSession.instance;
 
-  late final Map<String, int> _results;
-  late final List<QuestionOption> _sortedOptions;
+  late Map<String, int> _results;
+
+  late List<QuestionOption> _sortedOptions;
+
   late final Color _categoryColor;
 
   bool get _isQuestionOwner {
@@ -57,14 +61,66 @@ class _OnlineResultScreenState
             _session.currentUser.id;
   }
 
+  String? get _effectiveSelectedOptionId {
+    if (widget.selectedOptionId.isNotEmpty) {
+      return widget.selectedOptionId;
+    }
+
+    return _voteStore.selectedOptionFor(
+      widget.question.id,
+    );
+  }
+
+  bool get _isLiked {
+    return _feedInteractions.isLiked(
+      widget.question.id,
+    );
+  }
+
+  bool get _isQuiz {
+    return widget.question.type ==
+        QuestionType.quiz;
+  }
+
+  bool get _hasCorrectAnswer {
+    return widget.question.correctOptionId !=
+        null;
+  }
+
+  bool get _answerIsCorrect {
+    final selectedId =
+        _effectiveSelectedOptionId;
+
+    return !_isQuestionOwner &&
+        _isQuiz &&
+        _hasCorrectAnswer &&
+        selectedId != null &&
+        selectedId ==
+            widget.question.correctOptionId;
+  }
+
   @override
   void initState() {
     super.initState();
 
+    _categoryColor =
+        AppCategories.byId(
+      widget.question.categoryId,
+    ).color;
+
+    _refreshResults();
+  }
+
+  void _refreshResults() {
+    final optionIds =
+        widget.question.options.map(
+      (option) => option.id,
+    );
+
     _results =
-        MockOnlineData.generateResults(
-      widget.question,
-      widget.selectedOptionId,
+        _voteStore.resultsForQuestion(
+      widget.question.id,
+      optionIds,
     );
 
     _sortedOptions =
@@ -77,31 +133,6 @@ class _OnlineResultScreenState
           _results[a.id] ?? 0,
         ),
       );
-
-    _categoryColor =
-        AppCategories.byId(
-      widget.question.categoryId,
-    ).color;
-  }
-
-  bool get _isLiked =>
-      _feedInteractions.isLiked(
-    widget.question.id,
-  );
-
-  bool get _isQuiz =>
-      widget.question.type ==
-      QuestionType.quiz;
-
-  bool get _hasCorrectAnswer =>
-      widget.question.correctOptionId !=
-      null;
-
-  bool get _answerIsCorrect {
-    return _isQuiz &&
-        _hasCorrectAnswer &&
-        widget.question.correctOptionId ==
-            widget.selectedOptionId;
   }
 
   void _toggleLike() {
@@ -129,24 +160,48 @@ class _OnlineResultScreenState
     setState(() {});
   }
 
+  void _openComments() {
+    SocialCommentSheet.show(
+      context,
+      question: widget.question,
+      onChanged: () {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {});
+      },
+    );
+  }
+
   void _backToPreviousScreen() {
-    Navigator.pop(context, true);
+    Navigator.pop(
+      context,
+      true,
+    );
   }
 
   String _questionTypeLabel() {
     switch (widget.question.type) {
       case QuestionType.quiz:
         return 'اختبار';
+
       case QuestionType.poll:
         return 'تصويت';
+
       case QuestionType.opinion:
         return 'رأي';
+
       case QuestionType.discussion:
         return 'نقاش';
     }
   }
 
   String _resultTitle() {
+    if (_isQuestionOwner) {
+      return 'نتائج سؤالك';
+    }
+
     switch (widget.question.type) {
       case QuestionType.quiz:
         return _answerIsCorrect
@@ -166,8 +221,11 @@ class _OnlineResultScreenState
 
   String _resultSubtitle(
     int totalVotes,
-    int selectedCount,
   ) {
+    if (_isQuestionOwner) {
+      return '$totalVotes صوتًا حقيقيًا';
+    }
+
     switch (widget.question.type) {
       case QuestionType.quiz:
         return _answerIsCorrect
@@ -181,22 +239,30 @@ class _OnlineResultScreenState
         return '$totalVotes مشاركة';
 
       case QuestionType.discussion:
-        return 'شارك برأيك وأكمل النقاش.';
+        return '$totalVotes مشاركة';
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
+    _refreshResults();
+
     final totalVotes =
         _results.values.fold<int>(
       0,
       (sum, count) => sum + count,
     );
 
+    final selectedOptionId =
+        _effectiveSelectedOptionId;
+
     final selectedCount =
-        _results[
-              widget.selectedOptionId] ??
-            0;
+        selectedOptionId == null
+            ? 0
+            : _results[selectedOptionId] ??
+                0;
 
     final likeCount =
         _feedInteractions.likeCount(
@@ -224,8 +290,9 @@ class _OnlineResultScreenState
             primaryOrbColor:
                 _categoryColor,
             secondaryOrbColor:
-                _categoryColor
-                    .withOpacity(0.52),
+                _categoryColor.withOpacity(
+              0.52,
+            ),
           ),
           SafeArea(
             child: Column(
@@ -273,7 +340,6 @@ class _OnlineResultScreenState
                               Text(
                                 _resultSubtitle(
                                   totalVotes,
-                                  selectedCount,
                                 ),
                                 style:
                                     AppTextStyles
@@ -303,12 +369,14 @@ class _OnlineResultScreenState
                           height: 20,
                         ),
 
-                        if (_isQuiz &&
+                        if (!_isQuestionOwner &&
+                            _isQuiz &&
                             _hasCorrectAnswer)
                           LiquidGlassContainer(
-                            opacity: _answerIsCorrect
-                                ? 0.12
-                                : 0.08,
+                            opacity:
+                                _answerIsCorrect
+                                    ? 0.12
+                                    : 0.08,
                             child:
                                 Column(
                               children: [
@@ -351,6 +419,7 @@ class _OnlineResultScreenState
                           ),
                           ..._buildResults(
                             totalVotes,
+                            selectedOptionId,
                           ),
                         ],
 
@@ -358,7 +427,6 @@ class _OnlineResultScreenState
                           height: 24,
                         ),
 
-                        // Combined Like + Comment bar
                         Center(
                           child: Container(
                             padding:
@@ -371,7 +439,9 @@ class _OnlineResultScreenState
                                 BoxDecoration(
                               color: AppColors
                                   .surface
-                                  .withOpacity(0.72),
+                                  .withOpacity(
+                                0.72,
+                              ),
                               borderRadius:
                                   BorderRadius
                                       .circular(
@@ -379,15 +449,13 @@ class _OnlineResultScreenState
                               ),
                               border:
                                   Border.all(
-                                color:
-                                    AppColors
-                                        .divider,
+                                color: AppColors
+                                    .divider,
                               ),
                             ),
                             child: Row(
                               mainAxisSize:
-                                  MainAxisSize
-                                      .min,
+                                  MainAxisSize.min,
                               children: [
                                 InkWell(
                                   onTap:
@@ -399,17 +467,18 @@ class _OnlineResultScreenState
                                           .circular(
                                     999,
                                   ),
-                                  child: Padding(
+                                  child:
+                                      Padding(
                                     padding:
                                         const EdgeInsets
                                             .symmetric(
                                       horizontal: 8,
                                       vertical: 5,
                                     ),
-                                    child: Row(
+                                    child:
+                                        Row(
                                       mainAxisSize:
-                                          MainAxisSize
-                                              .min,
+                                          MainAxisSize.min,
                                       children: [
                                         Icon(
                                           _isLiked
@@ -418,11 +487,12 @@ class _OnlineResultScreenState
                                               : Icons
                                                   .favorite_border_rounded,
                                           size: 19,
-                                          color: _isLiked
-                                              ? AppColors
-                                                  .like
-                                              : AppColors
-                                                  .textSecondary,
+                                          color:
+                                              _isLiked
+                                                  ? AppColors
+                                                      .like
+                                                  : AppColors
+                                                      .textSecondary,
                                         ),
                                         const SizedBox(
                                           width: 5,
@@ -437,6 +507,7 @@ class _OnlineResultScreenState
                                     ),
                                   ),
                                 ),
+
                                 Container(
                                   width: 1,
                                   height: 18,
@@ -444,25 +515,10 @@ class _OnlineResultScreenState
                                       AppColors
                                           .divider,
                                 ),
+
                                 InkWell(
                                   onTap:
-                                      () {
-                                    SocialCommentSheet
-                                        .show(
-                                      context,
-                                      question:
-                                          widget
-                                              .question,
-                                      onChanged:
-                                          () {
-                                        if (mounted) {
-                                          setState(
-                                            () {},
-                                          );
-                                        }
-                                      },
-                                    );
-                                  },
+                                      _openComments,
                                   borderRadius:
                                       BorderRadius
                                           .circular(
@@ -473,29 +529,24 @@ class _OnlineResultScreenState
                                     padding:
                                         const EdgeInsets
                                             .symmetric(
-                                      horizontal:
-                                          8,
-                                      vertical:
-                                          5,
+                                      horizontal: 8,
+                                      vertical: 5,
                                     ),
                                     child:
                                         Row(
                                       mainAxisSize:
-                                          MainAxisSize
-                                              .min,
+                                          MainAxisSize.min,
                                       children: [
                                         const Icon(
                                           Icons
                                               .chat_bubble_outline_rounded,
-                                          size:
-                                              18,
+                                          size: 18,
                                           color:
                                               AppColors
                                                   .textSecondary,
                                         ),
                                         const SizedBox(
-                                          width:
-                                              5,
+                                          width: 5,
                                         ),
                                         Text(
                                           '$commentCount',
@@ -582,6 +633,7 @@ class _OnlineResultScreenState
 
   List<Widget> _buildResults(
     int totalVotes,
+    String? selectedOptionId,
   ) {
     return _sortedOptions.map(
       (option) {
@@ -595,7 +647,7 @@ class _OnlineResultScreenState
 
         final isSelected =
             option.id ==
-            widget.selectedOptionId;
+                selectedOptionId;
 
         final isCorrect =
             _isQuiz &&
@@ -614,14 +666,17 @@ class _OnlineResultScreenState
                 isSelected
                     ? 0.12
                     : 0.055,
-            child: Column(
+            child:
+                Column(
               crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  CrossAxisAlignment
+                      .start,
               children: [
                 Row(
                   children: [
                     Expanded(
-                      child: Row(
+                      child:
+                          Row(
                         children: [
                           if (isCorrect)
                             const Padding(
@@ -630,7 +685,8 @@ class _OnlineResultScreenState
                                       .only(
                                 right: 6,
                               ),
-                              child: Icon(
+                              child:
+                                  Icon(
                                 Icons
                                     .check_circle_rounded,
                                 size: 18,
@@ -640,7 +696,8 @@ class _OnlineResultScreenState
                               ),
                             ),
                           Expanded(
-                            child: Text(
+                            child:
+                                Text(
                               option.text,
                               style:
                                   AppTextStyles
@@ -656,17 +713,20 @@ class _OnlineResultScreenState
                           AppTextStyles
                               .titleMedium
                               .copyWith(
-                        color: isSelected
-                            ? _categoryColor
-                            : AppColors
-                                .textSecondary,
+                        color:
+                            isSelected
+                                ? _categoryColor
+                                : AppColors
+                                    .textSecondary,
                       ),
                     ),
                   ],
                 ),
+
                 const SizedBox(
                   height: 12,
                 ),
+
                 ClipRRect(
                   borderRadius:
                       BorderRadius
@@ -677,8 +737,7 @@ class _OnlineResultScreenState
                     children: [
                       Container(
                         height: 10,
-                        color: Colors
-                            .white
+                        color: Colors.white
                             .withOpacity(
                           0.07,
                         ),
@@ -689,21 +748,23 @@ class _OnlineResultScreenState
                         child:
                             Container(
                           height: 10,
-                          color: isSelected
-                              ? _categoryColor
-                              : Colors
-                                  .white
-                                  .withOpacity(
-                                0.42,
-                              ),
+                          color:
+                              isSelected
+                                  ? _categoryColor
+                                  : Colors.white
+                                      .withOpacity(
+                                    0.42,
+                                  ),
                         ),
                       ),
                     ],
                   ),
                 ),
+
                 const SizedBox(
                   height: 7,
                 ),
+
                 Text(
                   '$count صوت',
                   style:
