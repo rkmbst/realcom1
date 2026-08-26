@@ -114,6 +114,7 @@ class _SocialCommentCardState
               TextButton(
                 onPressed: widget.onReply,
                 style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 7,
                     vertical: 4,
