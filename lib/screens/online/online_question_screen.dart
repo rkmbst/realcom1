@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/auth/auth_session.dart';
 import '../../core/online/feed_interaction_store.dart';
+import '../../core/online/vote_store.dart';
 import '../../core/social/comment_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -35,10 +36,14 @@ class OnlineQuestionScreen extends StatefulWidget {
 
 class _OnlineQuestionScreenState
     extends State<OnlineQuestionScreen> {
-  final _session = AuthSession.instance;
+  final _session =
+      AuthSession.instance;
 
   final _feedInteractions =
       FeedInteractionStore.instance;
+
+  final _voteStore =
+      VoteStore.instance;
 
   late final List<QuestionOption> _options;
 
@@ -52,6 +57,18 @@ class _OnlineQuestionScreenState
             _session.currentUser.id;
   }
 
+  bool get _hasVoted {
+    return _voteStore.hasVoted(
+      widget.question.id,
+    );
+  }
+
+  String? get _savedVoteOptionId {
+    return _voteStore.selectedOptionFor(
+      widget.question.id,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -60,9 +77,16 @@ class _OnlineQuestionScreenState
       widget.question.options,
     )..shuffle();
 
-    _categoryColor = AppCategories.byId(
+    _categoryColor =
+        AppCategories.byId(
       widget.question.categoryId,
     ).color;
+
+    if (!_isQuestionOwner &&
+        _hasVoted) {
+      _selectedOptionId =
+          _savedVoteOptionId;
+    }
   }
 
   void _toggleLike() {
@@ -82,15 +106,15 @@ class _OnlineQuestionScreenState
     });
 
     if (!wasLiked) {
-      // Notification is handled by SocialCommentSheet
-      // or QuestionSocialService if needed.
+      // Notification is handled separately.
     }
 
     Haptics.light();
   }
 
   Future<void> _confirm() async {
-    if (_isQuestionOwner) {
+    if (_isQuestionOwner ||
+        _hasVoted) {
       return;
     }
 
@@ -98,6 +122,40 @@ class _OnlineQuestionScreenState
         _selectedOptionId;
 
     if (selectedOptionId == null) {
+      return;
+    }
+
+    final authorId =
+        widget.question.authorId;
+
+    if (authorId == null) {
+      return;
+    }
+
+    final recorded =
+        _voteStore.recordVote(
+      questionId:
+          widget.question.id,
+      optionId:
+          selectedOptionId,
+      authorId:
+          authorId,
+    );
+
+    if (!recorded) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'تم تسجيل تصويتك مسبقًا.',
+          ),
+        ),
+      );
+
       return;
     }
 
@@ -133,6 +191,23 @@ class _OnlineQuestionScreenState
         true,
       );
     }
+  }
+
+  void _openResults() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            OnlineResultScreen(
+          question:
+              widget.question,
+          selectedOptionId:
+              '',
+          isLastQuestion:
+              widget.isLastQuestion,
+        ),
+      ),
+    );
   }
 
   @override
@@ -337,15 +412,13 @@ class _OnlineQuestionScreenState
                         border:
                             Border.all(
                           color:
-                              AppColors
-                                  .divider,
+                              AppColors.divider,
                         ),
                       ),
                       child:
                           Row(
                         mainAxisSize:
-                            MainAxisSize
-                                .min,
+                            MainAxisSize.min,
                         children: [
                           InkWell(
                             onTap:
@@ -368,8 +441,7 @@ class _OnlineQuestionScreenState
                               child:
                                   Row(
                                 mainAxisSize:
-                                    MainAxisSize
-                                        .min,
+                                    MainAxisSize.min,
                                 children: [
                                   Icon(
                                     isLiked
@@ -378,15 +450,15 @@ class _OnlineQuestionScreenState
                                         : Icons
                                             .favorite_border_rounded,
                                     size: 19,
-                                    color: isLiked
-                                        ? AppColors
-                                            .like
-                                        : AppColors
-                                            .textSecondary,
+                                    color:
+                                        isLiked
+                                            ? AppColors
+                                                .like
+                                            : AppColors
+                                                .textSecondary,
                                   ),
                                   const SizedBox(
-                                    width:
-                                        5,
+                                    width: 5,
                                   ),
                                   Text(
                                     '$likeCount',
@@ -400,11 +472,9 @@ class _OnlineQuestionScreenState
                           ),
                           Container(
                             width: 1,
-                            height:
-                                18,
+                            height: 18,
                             color:
-                                AppColors
-                                    .divider,
+                                AppColors.divider,
                           ),
                           InkWell(
                             onTap: () {
@@ -434,29 +504,24 @@ class _OnlineQuestionScreenState
                               padding:
                                   const EdgeInsets
                                       .symmetric(
-                                horizontal:
-                                    8,
-                                vertical:
-                                    5,
+                                horizontal: 8,
+                                vertical: 5,
                               ),
                               child:
                                   Row(
                                 mainAxisSize:
-                                    MainAxisSize
-                                        .min,
+                                    MainAxisSize.min,
                                 children: [
                                   const Icon(
                                     Icons
                                         .chat_bubble_outline_rounded,
-                                    size:
-                                        18,
+                                    size: 18,
                                     color:
                                         AppColors
                                             .textSecondary,
                                   ),
                                   const SizedBox(
-                                    width:
-                                        5,
+                                    width: 5,
                                   ),
                                   Text(
                                     '$commentCount',
@@ -477,7 +542,7 @@ class _OnlineQuestionScreenState
                     height: 28,
                   ),
 
-                  if (isOwner)
+                  if (isOwner) ...[
                     LiquidGlassContainer(
                       opacity: 0.06,
                       padding:
@@ -497,8 +562,7 @@ class _OnlineQuestionScreenState
                                     .textSecondary,
                           ),
                           const SizedBox(
-                            height:
-                                8,
+                            height: 8,
                           ),
                           Text(
                             'هذا سؤالك',
@@ -507,11 +571,10 @@ class _OnlineQuestionScreenState
                                     .titleMedium,
                           ),
                           const SizedBox(
-                            height:
-                                5,
+                            height: 6,
                           ),
                           Text(
-                            'يمكنك قراءة النتائج والتعليقات والرد عليها، لكن لا يمكنك الإجابة عن سؤالك.',
+                            'يمكنك مشاهدة النتائج والتعليقات والرد عليها، لكن لا يمكنك التصويت.',
                             textAlign:
                                 TextAlign
                                     .center,
@@ -521,8 +584,111 @@ class _OnlineQuestionScreenState
                           ),
                         ],
                       ),
-                    )
-                  else ...[
+                    ),
+
+                    const SizedBox(
+                      height: 16,
+                    ),
+
+                    ElevatedButton.icon(
+                      onPressed:
+                          _openResults,
+                      icon:
+                          const Icon(
+                        Icons
+                            .bar_chart_rounded,
+                      ),
+                      label:
+                          const Text(
+                        'عرض النتائج',
+                      ),
+                      style:
+                          ElevatedButton
+                              .styleFrom(
+                        backgroundColor:
+                            AppColors
+                                .titanium,
+                        foregroundColor:
+                            AppColors
+                                .onTitanium,
+                        elevation: 0,
+                        padding:
+                            const EdgeInsets
+                                .symmetric(
+                          vertical: 14,
+                        ),
+                        shape:
+                            RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                            18,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ] else if (_hasVoted) ...[
+                    LiquidGlassContainer(
+                      opacity: 0.08,
+                      padding:
+                          const EdgeInsets
+                              .all(
+                        18,
+                      ),
+                      child:
+                          Column(
+                        children: [
+                          const Icon(
+                            Icons
+                                .check_circle_outline_rounded,
+                            size: 34,
+                            color:
+                                AppColors
+                                    .success,
+                          ),
+                          const SizedBox(
+                            height: 8,
+                          ),
+                          Text(
+                            'تم تسجيل تصويتك',
+                            style:
+                                AppTextStyles
+                                    .titleMedium,
+                          ),
+                          const SizedBox(
+                            height: 5,
+                          ),
+                          Text(
+                            'يمكنك مشاهدة النتيجة، ولا يمكن تغيير التصويت.',
+                            textAlign:
+                                TextAlign
+                                    .center,
+                            style:
+                                AppTextStyles
+                                    .caption,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 16,
+                    ),
+
+                    OutlinedButton.icon(
+                      onPressed:
+                          _openResults,
+                      icon:
+                          const Icon(
+                        Icons
+                            .bar_chart_rounded,
+                      ),
+                      label:
+                          const Text(
+                        'عرض النتيجة',
+                      ),
+                    ),
+                  ] else ...[
                     ..._options.map(
                       (option) {
                         final isSelected =
@@ -533,8 +699,7 @@ class _OnlineQuestionScreenState
                           padding:
                               const EdgeInsets
                                   .only(
-                            bottom:
-                                12,
+                            bottom: 12,
                           ),
                           child:
                               GestureDetector(
@@ -558,8 +723,7 @@ class _OnlineQuestionScreenState
                                       .symmetric(
                                 horizontal:
                                     20,
-                                vertical:
-                                    16,
+                                vertical: 16,
                               ),
                               child:
                                   Row(
@@ -577,8 +741,7 @@ class _OnlineQuestionScreenState
                                                 .textSecondary,
                                   ),
                                   const SizedBox(
-                                    width:
-                                        12,
+                                    width: 12,
                                   ),
                                   Expanded(
                                     child:
@@ -599,8 +762,7 @@ class _OnlineQuestionScreenState
                     ),
 
                     const SizedBox(
-                      height:
-                          24,
+                      height: 24,
                     ),
 
                     ElevatedButton(
@@ -621,11 +783,9 @@ class _OnlineQuestionScreenState
                         padding:
                             const EdgeInsets
                                 .symmetric(
-                          vertical:
-                              14,
+                          vertical: 14,
                         ),
-                        elevation:
-                            0,
+                        elevation: 0,
                         shape:
                             RoundedRectangleBorder(
                           borderRadius:
@@ -637,7 +797,7 @@ class _OnlineQuestionScreenState
                       ),
                       child:
                           const Text(
-                        'تأكيد الإجابة',
+                        'تأكيد التصويت',
                       ),
                     ),
                   ],
