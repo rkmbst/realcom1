@@ -45,6 +45,8 @@ class _OnlineFeedScreenState
 
   bool _isTransitioning = false;
 
+  double _dragProgress = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -66,7 +68,6 @@ class _OnlineFeedScreenState
         continue;
       }
 
-      // ✅ استبعاد Pack الذي اختار له المستخدم «غير مهتم»
       if (_interactions.isNotInterested(
         'pack_card_${pack.id}',
       )) {
@@ -109,7 +110,6 @@ class _OnlineFeedScreenState
         continue;
       }
 
-      // ✅ استبعاد Pack الذي اختار له المستخدم «غير مهتم»
       if (_interactions.isNotInterested(
         'pack_card_${pack.id}',
       )) {
@@ -216,14 +216,11 @@ class _OnlineFeedScreenState
       _isTransitioning = true;
     });
 
-    // The SwipeableCard has already completed
-    // its exit animation when this callback runs.
-    // Advancing now lets the next Pack occupy
-    // the stack immediately and safely.
     if (_currentIndex <
         _cards.length) {
       setState(() {
         _currentIndex++;
+        _dragProgress = 0.0;
         _isTransitioning = false;
       });
     }
@@ -596,15 +593,32 @@ class _OnlineFeedScreenState
       final depth =
           index - _currentIndex;
 
-      final scale =
+      final baseScale =
           1.0 -
               (depth * 0.035);
 
-      final verticalOffset =
+      final baseOffset =
           depth * 12.0;
 
-      final horizontalInset =
+      final baseInset =
           depth * 10.0;
+
+      final reveal =
+          depth == 1
+              ? _dragProgress
+              : _dragProgress * 0.65;
+
+      final scale =
+          baseScale +
+              (reveal * 0.035);
+
+      final verticalOffset =
+          baseOffset -
+              (reveal * 10.0);
+
+      final horizontalInset =
+          baseInset -
+              (reveal * 8.0);
 
       final isCurrent =
           depth == 0;
@@ -629,6 +643,15 @@ class _OnlineFeedScreenState
           key: ValueKey(
             card.id,
           ),
+          onDragProgress: (progress) {
+            if (!mounted) {
+              return;
+            }
+
+            setState(() {
+              _dragProgress = progress;
+            });
+          },
           onSwipeLeft:
               () =>
                   _markNotInterested(
@@ -734,6 +757,7 @@ class _OnlineFeedScreenState
               onPressed: () {
                 setState(() {
                   _currentIndex = 0;
+                  _dragProgress = 0.0;
                   _rebuildFeed();
                 });
               },
