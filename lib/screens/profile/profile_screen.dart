@@ -17,7 +17,6 @@ import '../../models/question_pack.dart';
 import '../../widgets/follow_button.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
-import '../../widgets/notification_bell.dart';
 import '../../widgets/user_avatar.dart';
 import '../auth/account_switch_screen.dart';
 import '../online/add_question_screen.dart';
@@ -253,7 +252,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                 }
               },
             ),
-          const NotificationBell(),
         ],
       ),
       body: Stack(
