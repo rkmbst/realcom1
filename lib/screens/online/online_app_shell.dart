@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/auth/auth_session.dart';
+import '../../core/notifications/notification_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/question_pack.dart';
@@ -24,6 +26,12 @@ class OnlineAppShell extends StatefulWidget {
 
 class _OnlineAppShellState
     extends State<OnlineAppShell> {
+  final _session =
+      AuthSession.instance;
+
+  final _notificationStore =
+      NotificationStore.instance;
+
   late int _currentIndex;
 
   late List<Widget> _pages;
@@ -95,13 +103,24 @@ class _OnlineAppShellState
         ],
       ),
       bottomNavigationBar:
-          _OnlineBottomNavigation(
-        currentIndex:
-            _currentIndex,
-        onChanged:
-            _selectTab,
-        onAdd:
-            _openAddQuestion,
+          ListenableBuilder(
+        listenable:
+            _notificationStore,
+        builder:
+            (context, _) {
+          return _OnlineBottomNavigation(
+            currentIndex:
+                _currentIndex,
+            onChanged:
+                _selectTab,
+            onAdd:
+                _openAddQuestion,
+            notificationStore:
+                _notificationStore,
+            currentUserId:
+                _session.currentUser.id,
+          );
+        },
       ),
     );
   }
@@ -113,14 +132,23 @@ class _OnlineBottomNavigation
     required this.currentIndex,
     required this.onChanged,
     required this.onAdd,
+    required this.notificationStore,
+    required this.currentUserId,
   });
 
   final int currentIndex;
   final ValueChanged<int> onChanged;
   final VoidCallback onAdd;
+  final NotificationStore notificationStore;
+  final String currentUserId;
 
   @override
   Widget build(BuildContext context) {
+    final unreadCount =
+        notificationStore.unreadCountForUser(
+      currentUserId,
+    );
+
     return SafeArea(
       top: false,
       minimum:
@@ -166,12 +194,9 @@ class _OnlineBottomNavigation
               ),
             ),
             Expanded(
-              child: _NavItem(
-                icon: Icons
-                    .notifications_outlined,
-                activeIcon: Icons
-                    .notifications_rounded,
-                label: 'الإشعارات',
+              child: _NotificationNavItem(
+                unreadCount:
+                    unreadCount,
                 selected:
                     currentIndex == 1,
                 onTap: () =>
@@ -213,6 +238,117 @@ class _OnlineBottomNavigation
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationNavItem
+    extends StatelessWidget {
+  const _NotificationNavItem({
+    required this.unreadCount,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final int unreadCount;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'الإشعارات',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius:
+            BorderRadius.circular(18),
+        child: SizedBox(
+          height: 60,
+          child: Column(
+            mainAxisAlignment:
+                MainAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior:
+                    Clip.none,
+                children: [
+                  Icon(
+                    selected
+                        ? Icons.notifications_rounded
+                        : Icons.notifications_outlined,
+                    size: 24,
+                    color: selected
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      top: -6,
+                      right: -8,
+                      child: Container(
+                        padding:
+                            const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              AppColors.error,
+                          borderRadius:
+                              BorderRadius.circular(999),
+                          border:
+                              Border.all(
+                            color: AppColors
+                                .background,
+                            width: 1.5,
+                          ),
+                        ),
+                        constraints:
+                            const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          unreadCount > 99
+                              ? '99+'
+                              : '$unreadCount',
+                          textAlign:
+                              TextAlign.center,
+                          style:
+                              AppTextStyles.caption
+                                  .copyWith(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight:
+                                FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(
+                height: 3,
+              ),
+              Text(
+                'الإشعارات',
+                style:
+                    AppTextStyles.caption
+                        .copyWith(
+                  color: selected
+                      ? AppColors
+                          .textPrimary
+                      : AppColors
+                          .textSecondary,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
