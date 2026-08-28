@@ -699,6 +699,51 @@ class _OnlineFeedScreenState
   }
 
   // ─────────────────────────────────────
+  // Feed action button
+  // ─────────────────────────────────────
+
+  Widget _buildFeedActionButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+    bool primary = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          width: primary ? 58 : 50,
+          height: primary ? 58 : 50,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: primary
+                ? AppColors.primary.withOpacity(0.14)
+                : AppColors.surface.withOpacity(0.06),
+            border: Border.all(
+              color: primary
+                  ? AppColors.primary.withOpacity(0.50)
+                  : AppColors.titaniumBorder.withOpacity(0.50),
+              width: 1,
+            ),
+          ),
+          child: Tooltip(
+            message: tooltip,
+            child: Icon(
+              icon,
+              size: primary ? 25 : 22,
+              color: primary
+                  ? AppColors.primary
+                  : AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────
   // Empty / Finished state
   // ─────────────────────────────────────
 
@@ -881,7 +926,96 @@ class _OnlineFeedScreenState
                           ),
 
                           const SizedBox(
-                            height: 4,
+                            height: 8,
+                          ),
+
+                          if (!finished)
+                            Builder(
+                              builder: (context) {
+                                final card =
+                                    _cards[
+                                        _currentIndex];
+
+                                final saved =
+                                    _interactions
+                                        .isSaved(
+                                  card.id,
+                                );
+
+                                return Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment
+                                          .center,
+                                  children: [
+                                    _buildFeedActionButton(
+                                      icon:
+                                          Icons.close_rounded,
+                                      tooltip:
+                                          'غير مهتم',
+                                      onTap: () {
+                                        _markNotInterested(
+                                          card,
+                                        );
+                                      },
+                                    ),
+
+                                    const SizedBox(
+                                      width: 16,
+                                    ),
+
+                                    _buildFeedActionButton(
+                                      icon: saved
+                                          ? Icons.bookmark_rounded
+                                          : Icons.bookmark_border_rounded,
+                                      tooltip: saved
+                                          ? 'إزالة من المحفوظات'
+                                          : 'حفظ',
+                                      onTap: () {
+                                        _toggleSave(
+                                          card,
+                                        );
+                                      },
+                                    ),
+
+                                    const SizedBox(
+                                      width: 16,
+                                    ),
+
+                                    _buildFeedActionButton(
+                                      icon:
+                                          Icons.open_in_new_rounded,
+                                      tooltip:
+                                          'فتح المجموعة',
+                                      onTap: () {
+                                        _openQuestion(
+                                          card,
+                                        );
+                                      },
+                                      primary: true,
+                                    ),
+
+                                    const SizedBox(
+                                      width: 16,
+                                    ),
+
+                                    _buildFeedActionButton(
+                                      icon:
+                                          Icons.favorite_rounded,
+                                      tooltip:
+                                          'مهتم',
+                                      onTap: () {
+                                        _markInterested(
+                                          card,
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+
+                          const SizedBox(
+                            height: 8,
                           ),
 
                           Text(
