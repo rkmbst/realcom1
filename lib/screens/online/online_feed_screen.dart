@@ -16,7 +16,6 @@ import '../../widgets/liquid_glass_container.dart';
 import '../../widgets/swipeable_card.dart';
 import '../profile/profile_screen.dart';
 import 'pack_question_flow_screen.dart';
-import 'publisher_wheel_screen.dart';
 
 class OnlineFeedScreen extends StatefulWidget {
   const OnlineFeedScreen({
@@ -308,43 +307,6 @@ class _OnlineFeedScreenState
     setState(() {
       _rebuildFeed();
     });
-  }
-
-  // ─────────────────────────────────────
-  // Wheel
-  // ─────────────────────────────────────
-
-  Future<void> _openPublisherWheel(
-    FeedCard card,
-  ) async {
-    final questions =
-        List<Question>.from(
-      card.pack.questions,
-    )..shuffle();
-
-    final selected =
-        questions
-            .take(7)
-            .toList();
-
-    if (selected.isEmpty) {
-      return;
-    }
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            PublisherWheelScreen(
-          publisher:
-              card.publisher,
-          pack:
-              card.pack,
-          questions:
-              selected,
-        ),
-      ),
-    );
   }
 
   // ─────────────────────────────────────
@@ -844,22 +806,6 @@ class _OnlineFeedScreenState
         title:
             const Text('الرئيسية'),
         centerTitle: true,
-        actions: [
-          if (hasCards &&
-              !finished)
-            IconButton(
-              tooltip: 'العجلة',
-              onPressed: () =>
-                  _openPublisherWheel(
-                _cards[
-                    _currentIndex],
-              ),
-              icon:
-                  const Icon(
-                Icons.casino_outlined,
-              ),
-            ),
-        ],
       ),
       body: Stack(
         children: [
