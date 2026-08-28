@@ -50,8 +50,6 @@ class _NotificationsScreenState
     _store.markAllAsReadForUser(
       userId,
     );
-
-    setState(() {});
   }
 
   Future<void> _openPackFromNotification(
@@ -158,8 +156,6 @@ class _NotificationsScreenState
       notification.id,
     );
 
-    setState(() {});
-
     switch (notification.type) {
       case NotificationType.follow:
         Navigator.push(
@@ -256,91 +252,96 @@ class _NotificationsScreenState
   Widget build(
     BuildContext context,
   ) {
-    final currentUser =
-        _session.currentUser;
+    return ListenableBuilder(
+      listenable: _store,
+      builder: (context, _) {
+        final currentUser =
+            _session.currentUser;
 
-    final notifications =
-        _store.notificationsForUser(
-      currentUser.id,
-    );
+        final notifications =
+            _store.notificationsForUser(
+          currentUser.id,
+        );
 
-    final unread =
-        _store.unreadCountForUser(
-      currentUser.id,
-    );
+        final unread =
+            _store.unreadCountForUser(
+          currentUser.id,
+        );
 
-    return Scaffold(
-      backgroundColor:
-          AppColors.background,
+        return Scaffold(
+          backgroundColor:
+              AppColors.background,
 
-      appBar: AppBar(
-        title:
-            const Text('الإشعارات'),
-        actions: [
-          if (unread > 0)
-            TextButton(
-              onPressed:
-                  _markAllAsRead,
-              child:
-                  const Text('قراءة الكل'),
-            ),
-        ],
-      ),
-
-      body: Stack(
-        children: [
-          const LiquidBackground(),
-
-          SafeArea(
-            child: notifications.isEmpty
-                ? const _EmptyNotifications()
-                : ListView.separated(
-                    padding:
-                        const EdgeInsets.fromLTRB(
-                      AppSpacing.x16,
-                      AppSpacing.x12,
-                      AppSpacing.x16,
-                      AppSpacing.x24,
-                    ),
-                    itemCount:
-                        notifications.length,
-                    separatorBuilder:
-                        (_, __) =>
-                            const SizedBox(
-                      height:
-                          AppSpacing.x8,
-                    ),
-                    itemBuilder:
-                        (context, index) {
-                      final notification =
-                          notifications[index];
-
-                      return _NotificationTile(
-                        notification:
-                            notification,
-                        icon:
-                            _iconFor(
-                          notification.type,
-                        ),
-                        iconColor:
-                            _iconColorFor(
-                          notification.type,
-                        ),
-                        timeLabel:
-                            _timeLabel(
-                          notification.createdAt,
-                        ),
-                        onTap:
-                            () =>
-                                _openNotification(
-                          notification,
-                        ),
-                      );
-                    },
-                  ),
+          appBar: AppBar(
+            title:
+                const Text('الإشعارات'),
+            actions: [
+              if (unread > 0)
+                TextButton(
+                  onPressed:
+                      _markAllAsRead,
+                  child:
+                      const Text('قراءة الكل'),
+                ),
+            ],
           ),
-        ],
-      ),
+
+          body: Stack(
+            children: [
+              const LiquidBackground(),
+
+              SafeArea(
+                child: notifications.isEmpty
+                    ? const _EmptyNotifications()
+                    : ListView.separated(
+                        padding:
+                            const EdgeInsets.fromLTRB(
+                          AppSpacing.x16,
+                          AppSpacing.x12,
+                          AppSpacing.x16,
+                          AppSpacing.x24,
+                        ),
+                        itemCount:
+                            notifications.length,
+                        separatorBuilder:
+                            (_, __) =>
+                                const SizedBox(
+                          height:
+                              AppSpacing.x8,
+                        ),
+                        itemBuilder:
+                            (context, index) {
+                          final notification =
+                              notifications[index];
+
+                          return _NotificationTile(
+                            notification:
+                                notification,
+                            icon:
+                                _iconFor(
+                              notification.type,
+                            ),
+                            iconColor:
+                                _iconColorFor(
+                              notification.type,
+                            ),
+                            timeLabel:
+                                _timeLabel(
+                              notification.createdAt,
+                            ),
+                            onTap:
+                                () =>
+                                    _openNotification(
+                              notification,
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
