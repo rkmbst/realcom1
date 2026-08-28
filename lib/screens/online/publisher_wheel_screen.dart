@@ -15,16 +15,16 @@ import '../../widgets/liquid_glass_container.dart';
 import 'online_question_screen.dart';
 
 class PublisherWheelScreen extends StatefulWidget {
-  final Publisher publisher;
-  final QuestionPack pack;
-  final List<Question> questions;
-
   const PublisherWheelScreen({
     super.key,
     required this.publisher,
     required this.pack,
     required this.questions,
   });
+
+  final Publisher publisher;
+  final QuestionPack pack;
+  final List<Question> questions;
 
   @override
   State<PublisherWheelScreen> createState() =>
@@ -39,27 +39,50 @@ class _PublisherWheelScreenState
   late final AnimationController _controller;
 
   final Random _random = Random();
-  final Set<String> _usedQuestionIds = {};
+
+  final Set<String> _usedQuestionIds =
+      <String>{};
 
   double _rotation = 0;
+
   bool _isSpinning = false;
+
+  bool _roundCompleted = false;
 
   int? _selectedSlot;
 
-  Color _ambientColor = AppColors.secondary;
+  Color _ambientColor =
+      AppColors.secondary;
+
+  int get _totalQuestions =>
+      widget.questions.length;
+
+  int get _completedQuestions =>
+      _usedQuestionIds.length;
+
+  int get _remainingQuestions =>
+      max(
+        0,
+        _totalQuestions -
+            _completedQuestions,
+      );
 
   @override
   void initState() {
     super.initState();
 
-    _controller = AnimationController.unbounded(
+    _controller =
+        AnimationController.unbounded(
       vsync: this,
       value: _rotation,
     )..addListener(() {
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         setState(() {
-          _rotation = _controller.value;
+          _rotation =
+              _controller.value;
         });
       });
   }
@@ -72,10 +95,14 @@ class _PublisherWheelScreenState
       return 0;
     }
 
-    return ((questionIndex * wheelSlotCount) /
+    return ((questionIndex *
+                wheelSlotCount) /
             questionCount)
         .floor()
-        .clamp(0, wheelSlotCount - 1);
+        .clamp(
+          0,
+          wheelSlotCount - 1,
+        );
   }
 
   Color _spinningAmbientColor() {
@@ -90,13 +117,17 @@ class _PublisherWheelScreenState
     const speed = 0.48;
 
     final raw =
-        (_rotation * speed) % colors.length;
+        (_rotation * speed) %
+            colors.length;
 
     final index = raw.floor();
-    final nextIndex =
-        (index + 1) % colors.length;
 
-    final t = Curves.easeInOut.transform(
+    final nextIndex =
+        (index + 1) %
+            colors.length;
+
+    final t =
+        Curves.easeInOut.transform(
       raw - index,
     );
 
@@ -108,16 +139,22 @@ class _PublisherWheelScreenState
   }
 
   Future<void> _spin() async {
-    if (_isSpinning || widget.questions.isEmpty) {
+    if (_isSpinning ||
+        _roundCompleted ||
+        widget.questions.isEmpty) {
       return;
     }
 
-    final unusedIndexes = <int>[];
+    final unusedIndexes =
+        <int>[];
 
-    for (int i = 0;
-        i < widget.questions.length;
-        i++) {
-      if (!_usedQuestionIds.contains(
+    for (
+      int i = 0;
+      i < widget.questions.length;
+      i++
+    ) {
+      if (!_usedQuestionIds
+          .contains(
         widget.questions[i].id,
       )) {
         unusedIndexes.add(i);
@@ -125,7 +162,8 @@ class _PublisherWheelScreenState
     }
 
     if (unusedIndexes.isEmpty) {
-      _showRoundCompleteDialog();
+      _completeRound();
+
       return;
     }
 
@@ -135,29 +173,44 @@ class _PublisherWheelScreenState
           unusedIndexes.length,
         )];
 
-    final selectedSlot = _questionIndexToSlot(
+    final selectedSlot =
+        _questionIndexToSlot(
       selectedIndex,
       widget.questions.length,
     );
 
-    const slotAngle = 2 * pi / wheelSlotCount;
+    const slotAngle =
+        2 * pi /
+            wheelSlotCount;
 
     final selectedTargetAngle =
-        -(selectedSlot * slotAngle);
+        -(selectedSlot *
+            slotAngle);
 
     final currentTurns =
-        (_rotation / (2 * pi)).floor();
+        (_rotation /
+                (2 * pi))
+            .floor();
 
     var targetRotation =
-        currentTurns * 2 * pi +
+        currentTurns *
+                2 *
+                pi +
             selectedTargetAngle;
 
-    while (targetRotation <= _rotation) {
-      targetRotation += 2 * pi;
+    while (
+        targetRotation <=
+            _rotation) {
+      targetRotation +=
+          2 * pi;
     }
 
     targetRotation +=
-        (7 + _random.nextInt(3)) * 2 * pi;
+        (7 +
+                _random
+                    .nextInt(3)) *
+            2 *
+            pi;
 
     setState(() {
       _isSpinning = true;
@@ -169,105 +222,203 @@ class _PublisherWheelScreenState
     await _controller.animateTo(
       targetRotation,
       duration:
-          const Duration(milliseconds: 5600),
-      curve: Curves.easeOutCubic,
+          const Duration(
+        milliseconds: 5600,
+      ),
+      curve:
+          Curves.easeOutCubic,
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
-    _controller.value = targetRotation;
+    _controller.value =
+        targetRotation;
 
     final selectedQuestion =
-        widget.questions[selectedIndex];
+        widget.questions[
+            selectedIndex];
 
     final category =
         AppCategories.byId(
-      selectedQuestion.categoryId,
+      selectedQuestion
+          .categoryId,
     );
 
-    _usedQuestionIds.add(
-      selectedQuestion.id,
-    );
-
-    // This is the important part:
-    // after this question, are there no questions left?
+    // Last means: this is the final
+    // remaining question before the
+    // user answers it.
     final isLastQuestion =
-        _usedQuestionIds.length >=
-        widget.questions.length;
+        _remainingQuestions == 1;
 
     setState(() {
-      _rotation = targetRotation;
-      _selectedSlot = selectedSlot;
-      _ambientColor = category.color;
+      _rotation =
+          targetRotation;
+
+      _selectedSlot =
+          selectedSlot;
+
+      _ambientColor =
+          category.color;
+
       _isSpinning = false;
     });
 
     Haptics.light();
 
     await Future.delayed(
-      const Duration(milliseconds: 420),
+      const Duration(
+        milliseconds: 420,
+      ),
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
-    await Navigator.push(
+    final completed =
+        await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => OnlineQuestionScreen(
-          question: selectedQuestion,
-          publisher: widget.publisher,
-          isLastQuestion: isLastQuestion,
+        builder: (_) =>
+            OnlineQuestionScreen(
+          question:
+              selectedQuestion,
+          publisher:
+              widget.publisher,
+          isLastQuestion:
+              isLastQuestion,
         ),
       ),
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
+
+    // Only consume the question
+    // after the user actually
+    // completes the question flow.
+    if (completed == true) {
+      _usedQuestionIds.add(
+        selectedQuestion.id,
+      );
+    }
 
     setState(() {
       _selectedSlot = null;
     });
+
+    if (completed == true &&
+        _usedQuestionIds.length >=
+            widget.questions.length) {
+      _completeRound();
+    }
+  }
+
+  void _completeRound() {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _roundCompleted = true;
+      _selectedSlot = null;
+      _isSpinning = false;
+      _ambientColor =
+          AppColors.secondary;
+    });
+
+    Haptics.medium();
+
+    Future<void>.delayed(
+      const Duration(
+        milliseconds: 280,
+      ),
+      () {
+        if (!mounted) {
+          return;
+        }
+
+        _showRoundCompleteDialog();
+      },
+    );
   }
 
   void _showRoundCompleteDialog() {
+    if (!mounted) {
+      return;
+    }
+
     showDialog<void>(
       context: context,
-      builder: (context) {
+      barrierDismissible: false,
+      builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(
+          backgroundColor:
+              AppColors.surface,
+          shape:
+              RoundedRectangleBorder(
             borderRadius:
-                BorderRadius.circular(22),
+                BorderRadius.circular(
+              22,
+            ),
           ),
           title: const Text(
-            'اكتملت أسئلة الناشر',
-            style: AppTextStyles.titleLarge,
+            'اكتملت الجولة 🎯',
+            style:
+                AppTextStyles.titleLarge,
+            textAlign:
+                TextAlign.center,
           ),
-          content: const Text(
-            'تم استخدام جميع الأسئلة في هذه الجولة.',
-            style: AppTextStyles.bodyMedium,
+          content: Text(
+            'أكملت جميع أسئلة مجموعة «${widget.pack.title}».',
+            style:
+                AppTextStyles.bodyMedium,
+            textAlign:
+                TextAlign.center,
           ),
+          actionsAlignment:
+              MainAxisAlignment.center,
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(context),
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                );
+
+                Navigator.pop(
+                  context,
+                  true,
+                );
+              },
               child: const Text(
-                'خروج',
+                'العودة',
                 style: TextStyle(
-                  color:
-                      AppColors.textSecondary,
+                  color: Colors.white,
                 ),
               ),
             ),
             TextButton(
               onPressed: () {
                 setState(() {
-                  _usedQuestionIds.clear();
+                  _usedQuestionIds
+                      .clear();
+
                   _selectedSlot = null;
+
+                  _roundCompleted =
+                      false;
+
                   _ambientColor =
-                      AppColors.secondary;
+                      AppColors
+                          .secondary;
                 });
 
-                Navigator.pop(context);
+                Navigator.pop(
+                  dialogContext,
+                );
               },
               child: const Text(
                 'إعادة الجولة',
@@ -283,6 +434,18 @@ class _PublisherWheelScreenState
     );
   }
 
+  String _progressLabel() {
+    if (_totalQuestions == 0) {
+      return 'لا توجد أسئلة';
+    }
+
+    if (_roundCompleted) {
+      return 'اكتملت الجولة';
+    }
+
+    return '$_completedQuestions / $_totalQuestions';
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -290,9 +453,13 @@ class _PublisherWheelScreenState
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     final screenWidth =
-        MediaQuery.of(context).size.width;
+        MediaQuery.of(context)
+            .size
+            .width;
 
     final wheelSize = min(
       screenWidth * 0.84,
@@ -308,8 +475,27 @@ class _PublisherWheelScreenState
       backgroundColor:
           AppColors.background,
       appBar: AppBar(
-        title:
-            Text(widget.publisher.name),
+        title: Text(
+          widget.publisher.name,
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'خروج',
+            onPressed:
+                _isSpinning
+                    ? null
+                    : () {
+                        Navigator.pop(
+                          context,
+                        );
+                      },
+            icon:
+                const Icon(
+              Icons
+                  .close_rounded,
+            ),
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -317,59 +503,125 @@ class _PublisherWheelScreenState
             primaryOrbColor:
                 backgroundColor,
             secondaryOrbColor:
-                backgroundColor.withOpacity(
+                backgroundColor
+                    .withOpacity(
               0.55,
             ),
           ),
           SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
+            child:
+                Center(
+              child:
+                  SingleChildScrollView(
                 padding:
-                    const EdgeInsets.symmetric(
+                    const EdgeInsets
+                        .symmetric(
+                  horizontal: 20,
                   vertical: 24,
                 ),
-                child: Column(
+                child:
+                    Column(
                   mainAxisAlignment:
-                      MainAxisAlignment.center,
+                      MainAxisAlignment
+                          .center,
                   children: [
                     Text(
-                      widget.pack.title,
+                      widget
+                          .pack
+                          .title,
                       style:
-                          AppTextStyles.titleLarge,
+                          AppTextStyles
+                              .titleLarge,
                       textAlign:
-                          TextAlign.center,
+                          TextAlign
+                              .center,
                     ),
-                    const SizedBox(height: 8),
+
+                    const SizedBox(
+                      height: 8,
+                    ),
+
                     Text(
                       '${widget.questions.length} أسئلة',
                       style:
-                          AppTextStyles.caption,
+                          AppTextStyles
+                              .caption,
                     ),
-                    const SizedBox(height: 22),
+
+                    const SizedBox(
+                      height: 18,
+                    ),
+
                     LiquidGlassContainer(
-                      borderRadius: 999,
+                      opacity:
+                          0.07,
+                      borderRadius:
+                          999,
                       padding:
-                          const EdgeInsets.all(6),
+                          const EdgeInsets
+                              .symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       child:
-                          AuroraTitaniumWheel(
-                        rotation: _rotation,
-                        selectedSlot:
-                            _selectedSlot,
-                        size: wheelSize,
+                          Row(
+                        mainAxisSize:
+                            MainAxisSize
+                                .min,
+                        children: [
+                          const Icon(
+                            Icons
+                                .check_circle_outline_rounded,
+                            size: 17,
+                            color:
+                                AppColors
+                                    .primary,
+                          ),
+                          const SizedBox(
+                            width: 7,
+                          ),
+                          Text(
+                            _progressLabel(),
+                            style:
+                                AppTextStyles
+                                    .caption,
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 30),
-                    SizedBox(
-                      width:
-                          double.infinity,
-                      height: 54,
+
+                    const SizedBox(
+                      height: 22,
+                    ),
+
+                    LiquidGlassContainer(
+                      borderRadius:
+                          999,
+                      padding:
+                          const EdgeInsets
+                              .all(
+                        6,
+                      ),
                       child:
-                          Padding(
-                        padding:
-                            const EdgeInsets
-                                .symmetric(
-                          horizontal: 32,
-                        ),
+                          AuroraTitaniumWheel(
+                        rotation:
+                            _rotation,
+                        selectedSlot:
+                            _selectedSlot,
+                        size:
+                            wheelSize,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 30,
+                    ),
+
+                    if (!_roundCompleted)
+                      SizedBox(
+                        width:
+                            double.infinity,
+                        height: 54,
                         child:
                             ElevatedButton(
                           onPressed:
@@ -385,23 +637,49 @@ class _PublisherWheelScreenState
                             foregroundColor:
                                 AppColors
                                     .onTitanium,
-                            elevation: 0,
+                            elevation:
+                                0,
                             shape:
                                 RoundedRectangleBorder(
                               borderRadius:
-                                  BorderRadius
-                                      .circular(
+                                  BorderRadius.circular(
                                 18,
                               ),
                             ),
                           ),
-                          child: Text(
+                          child:
+                              Text(
                             _isSpinning
                                 ? 'جاري الدوران...'
-                                : 'دور العجلة',
+                                : _completedQuestions ==
+                                        0
+                                    ? 'ابدأ الجولة'
+                                    : 'السؤال التالي',
                           ),
                         ),
+                      )
+                    else
+                      Text(
+                        'اكتملت جميع الأسئلة',
+                        style:
+                            AppTextStyles
+                                .titleMedium,
+                        textAlign:
+                            TextAlign
+                                .center,
                       ),
+
+                    const SizedBox(
+                      height: 14,
+                    ),
+
+                    Text(
+                      'كل دورة تختار سؤالًا لم يُستخدم بعد.',
+                      style:
+                          AppTextStyles
+                              .caption,
+                      textAlign:
+                          TextAlign.center,
                     ),
                   ],
                 ),
