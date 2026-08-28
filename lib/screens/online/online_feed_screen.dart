@@ -198,35 +198,21 @@ class _OnlineFeedScreenState
       return;
     }
 
-    if (_currentIndex >=
-        _cards.length - 1) {
-      setState(() {
-        _isTransitioning = false;
-      });
-      return;
-    }
-
     setState(() {
       _isTransitioning = true;
     });
 
-    // Give the outgoing animation time to
-    // finish before replacing the active card.
-    Future<void>.delayed(
-      const Duration(
-        milliseconds: 180,
-      ),
-      () {
-        if (!mounted) {
-          return;
-        }
-
-        setState(() {
-          _currentIndex++;
-          _isTransitioning = false;
-        });
-      },
-    );
+    // The SwipeableCard has already completed
+    // its exit animation when this callback runs.
+    // Advancing now lets the next Pack occupy
+    // the stack immediately and safely.
+    if (_currentIndex <
+        _cards.length) {
+      setState(() {
+        _currentIndex++;
+        _isTransitioning = false;
+      });
+    }
   }
 
   // ─────────────────────────────────────
