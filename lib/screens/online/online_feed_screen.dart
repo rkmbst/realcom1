@@ -66,6 +66,13 @@ class _OnlineFeedScreenState
         continue;
       }
 
+      // ✅ استبعاد Pack الذي اختار له المستخدم «غير مهتم»
+      if (_interactions.isNotInterested(
+        'pack_card_${pack.id}',
+      )) {
+        continue;
+      }
+
       Publisher? publisher;
 
       for (final item
@@ -99,6 +106,13 @@ class _OnlineFeedScreenState
     for (final pack
         in _packStore.publishedPacks) {
       if (pack.questions.isEmpty) {
+        continue;
+      }
+
+      // ✅ استبعاد Pack الذي اختار له المستخدم «غير مهتم»
+      if (_interactions.isNotInterested(
+        'pack_card_${pack.id}',
+      )) {
         continue;
       }
 
@@ -720,6 +734,7 @@ class _OnlineFeedScreenState
               onPressed: () {
                 setState(() {
                   _currentIndex = 0;
+                  _rebuildFeed();
                 });
               },
               icon:
