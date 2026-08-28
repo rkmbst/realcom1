@@ -13,12 +13,25 @@ class SwipeableCard extends StatefulWidget {
     required this.onSwipeLeft,
     required this.onSwipeRight,
     this.threshold = 120,
+    this.onDragProgress,
   });
 
   final Widget child;
+
   final VoidCallback onSwipeLeft;
+
   final VoidCallback onSwipeRight;
+
   final double threshold;
+
+  /// Returns a normalized drag progress:
+  ///
+  /// 0.0 = centered
+  /// 1.0 = threshold reached
+  ///
+  /// The value is always positive and describes
+  /// how far the card has been dragged.
+  final ValueChanged<double>? onDragProgress;
 
   @override
   State<SwipeableCard> createState() =>
@@ -62,7 +75,19 @@ class _SwipeableCardState
       setState(() {
         _dragX = animation.value;
       });
+
+      _notifyProgress();
     });
+  }
+
+  void _notifyProgress() {
+    final progress =
+        (_dragX.abs() / widget.threshold)
+            .clamp(0.0, 1.0);
+
+    widget.onDragProgress?.call(
+      progress,
+    );
   }
 
   void _onPanStart(
@@ -77,6 +102,8 @@ class _SwipeableCardState
     _horizontalGesture = false;
 
     _gestureLocked = false;
+
+    _notifyProgress();
   }
 
   void _onPanUpdate(
@@ -99,8 +126,6 @@ class _SwipeableCardState
       return;
     }
 
-    // Lock decisively to whichever direction
-    // the user actually started dragging.
     if (absX > absY * 1.12) {
       _horizontalGesture = true;
       _gestureLocked = true;
@@ -108,10 +133,10 @@ class _SwipeableCardState
       _horizontalGesture = false;
       _gestureLocked = true;
 
-      // Give the parent vertical scroll
-      // complete ownership.
       _dragX = 0;
       _dragY = 0;
+
+      _notifyProgress();
 
       return;
     }
@@ -120,17 +145,20 @@ class _SwipeableCardState
       return;
     }
 
-    // Keep the card responsive, but slightly
-    // damp very large accidental movements.
+    final width =
+        MediaQuery.of(context).size.width;
+
     final limitedX =
         _dragX.clamp(
-      -MediaQuery.of(context).size.width * 0.95,
-      MediaQuery.of(context).size.width * 0.95,
+      -width * 0.95,
+      width * 0.95,
     );
 
     setState(() {
       _dragX = limitedX;
     });
+
+    _notifyProgress();
   }
 
   void _onPanEnd(
@@ -139,7 +167,7 @@ class _SwipeableCardState
     if (_isAnimating ||
         !_horizontalGesture) {
       _resetGestureState();
-
+      _notifyProgress();
       return;
     }
 
@@ -157,7 +185,8 @@ class _SwipeableCardState
     if (passedRight) {
       _animateOut(
         direction: 1,
-        callback: widget.onSwipeRight,
+        callback:
+            widget.onSwipeRight,
       );
 
       return;
@@ -166,7 +195,8 @@ class _SwipeableCardState
     if (passedLeft) {
       _animateOut(
         direction: -1,
-        callback: widget.onSwipeLeft,
+        callback:
+            widget.onSwipeLeft,
       );
 
       return;
@@ -256,7 +286,8 @@ class _SwipeableCardState
       _handleAnimationStatus,
     );
 
-    final callback = _pendingCallback;
+    final callback =
+        _pendingCallback;
 
     _pendingCallback = null;
 
@@ -271,6 +302,8 @@ class _SwipeableCardState
       _gestureLocked = false;
       _isAnimating = false;
     });
+
+    _notifyProgress();
 
     callback?.call();
   }
@@ -300,9 +333,6 @@ class _SwipeableCardState
         (_dragX / width)
             .clamp(-1.0, 1.0);
 
-    // Very subtle rotation.
-    // We want physical movement,
-    // not a flying card effect.
     final rotation =
         normalized * 0.055;
 
@@ -350,25 +380,32 @@ class _SwipeableCardState
                 scale,
               ),
         child: Stack(
-          fit: StackFit.expand,
+          fit:
+              StackFit.expand,
           children: [
             widget.child,
 
             Positioned(
               top: 24,
               left: 24,
-              child: IgnorePointer(
-                child: AnimatedOpacity(
+              child:
+                  IgnorePointer(
+                child:
+                    AnimatedOpacity(
                   opacity:
                       rightOpacity,
                   duration:
                       AppMotion.micro,
-                  child: const _SwipeStamp(
-                    label: 'مهتم',
+                  child:
+                      const _SwipeStamp(
+                    label:
+                        'مهتم',
                     icon:
-                        Icons.favorite_rounded,
+                        Icons
+                            .favorite_rounded,
                     color:
-                        AppColors.success,
+                        AppColors
+                            .success,
                   ),
                 ),
               ),
@@ -377,18 +414,24 @@ class _SwipeableCardState
             Positioned(
               top: 24,
               right: 24,
-              child: IgnorePointer(
-                child: AnimatedOpacity(
+              child:
+                  IgnorePointer(
+                child:
+                    AnimatedOpacity(
                   opacity:
                       leftOpacity,
                   duration:
                       AppMotion.micro,
-                  child: const _SwipeStamp(
-                    label: 'غير مهتم',
+                  child:
+                      const _SwipeStamp(
+                    label:
+                        'غير مهتم',
                     icon:
-                        Icons.close_rounded,
+                        Icons
+                            .close_rounded,
                     color:
-                        AppColors.error,
+                        AppColors
+                            .error,
                   ),
                 ),
               ),
@@ -427,7 +470,9 @@ class _SwipeStamp
       decoration:
           BoxDecoration(
         color:
-            color.withOpacity(0.14),
+            color.withOpacity(
+          0.14,
+        ),
         borderRadius:
             BorderRadius.circular(
           AppRadius.pill,
@@ -435,7 +480,9 @@ class _SwipeStamp
         border:
             Border.all(
           color:
-              color.withOpacity(0.72),
+              color.withOpacity(
+            0.72,
+          ),
           width: 1.2,
         ),
       ),
@@ -454,7 +501,8 @@ class _SwipeStamp
           Text(
             label,
             style:
-                AppTextStyles.button
+                AppTextStyles
+                    .button
                     .copyWith(
               color: color,
             ),
