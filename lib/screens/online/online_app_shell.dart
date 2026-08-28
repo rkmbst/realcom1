@@ -244,117 +244,6 @@ class _OnlineBottomNavigation
   }
 }
 
-class _NotificationNavItem
-    extends StatelessWidget {
-  const _NotificationNavItem({
-    required this.unreadCount,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final int unreadCount;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: 'الإشعارات',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius:
-            BorderRadius.circular(18),
-        child: SizedBox(
-          height: 60,
-          child: Column(
-            mainAxisAlignment:
-                MainAxisAlignment.center,
-            children: [
-              Stack(
-                clipBehavior:
-                    Clip.none,
-                children: [
-                  Icon(
-                    selected
-                        ? Icons.notifications_rounded
-                        : Icons.notifications_outlined,
-                    size: 24,
-                    color: selected
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                  ),
-                  if (unreadCount > 0)
-                    Positioned(
-                      top: -6,
-                      right: -8,
-                      child: Container(
-                        padding:
-                            const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 2,
-                        ),
-                        decoration:
-                            BoxDecoration(
-                          color:
-                              AppColors.error,
-                          borderRadius:
-                              BorderRadius.circular(999),
-                          border:
-                              Border.all(
-                            color: AppColors
-                                .background,
-                            width: 1.5,
-                          ),
-                        ),
-                        constraints:
-                            const BoxConstraints(
-                          minWidth: 18,
-                          minHeight: 18,
-                        ),
-                        child: Text(
-                          unreadCount > 99
-                              ? '99+'
-                              : '$unreadCount',
-                          textAlign:
-                              TextAlign.center,
-                          style:
-                              AppTextStyles.caption
-                                  .copyWith(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight:
-                                FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(
-                height: 3,
-              ),
-              Text(
-                'الإشعارات',
-                style:
-                    AppTextStyles.caption
-                        .copyWith(
-                  color: selected
-                      ? AppColors
-                          .textPrimary
-                      : AppColors
-                          .textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _NavItem
     extends StatelessWidget {
   const _NavItem({
@@ -402,6 +291,126 @@ class _NavItem
               ),
               Text(
                 label,
+                style:
+                    AppTextStyles.caption
+                        .copyWith(
+                  color: selected
+                      ? AppColors
+                          .textPrimary
+                      : AppColors
+                          .textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationNavItem
+    extends StatelessWidget {
+  const _NotificationNavItem({
+    required this.unreadCount,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final int unreadCount;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'الإشعارات',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius:
+            BorderRadius.circular(18),
+        child: SizedBox(
+          height: 60,
+          child: Column(
+            mainAxisAlignment:
+                MainAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior:
+                    Clip.none,
+                children: [
+                  Icon(
+                    selected
+                        ? Icons
+                            .notifications_rounded
+                        : Icons
+                            .notifications_outlined,
+                    size: 24,
+                    color: selected
+                        ? AppColors.primary
+                        : AppColors
+                            .textSecondary,
+                  ),
+
+                  if (unreadCount > 0)
+                    Positioned(
+                      top: -7,
+                      right: -9,
+                      child: Container(
+                        constraints:
+                            const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        padding:
+                            const EdgeInsets
+                                .symmetric(
+                          horizontal: 4,
+                        ),
+                        decoration:
+                            BoxDecoration(
+                          color: AppColors
+                              .error,
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                            999,
+                          ),
+                          border:
+                              Border.all(
+                            color: AppColors
+                                .surface,
+                            width: 1.5,
+                          ),
+                        ),
+                        alignment:
+                            Alignment.center,
+                        child: Text(
+                          unreadCount > 99
+                              ? '99+'
+                              : '$unreadCount',
+                          style:
+                              const TextStyle(
+                            fontSize: 9,
+                            fontWeight:
+                                FontWeight.w700,
+                            color:
+                                Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(
+                height: 3,
+              ),
+              Text(
+                'الإشعارات',
                 style:
                     AppTextStyles.caption
                         .copyWith(
