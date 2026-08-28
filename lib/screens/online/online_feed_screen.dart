@@ -4,7 +4,6 @@ import '../../core/auth/auth_session.dart';
 import '../../core/online/feed_interaction_store.dart';
 import '../../core/online/question_pack_store.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_physics.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/categories.dart';
 import '../../core/utils/haptics.dart';
@@ -12,7 +11,6 @@ import '../../data/mock_online_data.dart';
 import '../../models/feed_card.dart';
 import '../../models/publisher.dart';
 import '../../models/question.dart';
-import '../../models/question_pack.dart';
 import '../../widgets/liquid_background.dart';
 import '../../widgets/liquid_glass_container.dart';
 import '../../widgets/swipeable_card.dart';
@@ -43,31 +41,25 @@ class _OnlineFeedScreenState
 
   late List<FeedCard> _cards;
 
-  late final PageController
-      _pageController;
-
   int _currentIndex = 0;
+
+  bool _isTransitioning = false;
 
   @override
   void initState() {
     super.initState();
 
-    _pageController =
-        PageController();
-
     _rebuildFeed();
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
+  // ─────────────────────────────────────
+  // Feed data
+  // ─────────────────────────────────────
 
   void _rebuildFeed() {
     final cards = <FeedCard>[];
 
-    // Built-in mock packs.
+    // Built-in packs.
     for (final pack
         in MockOnlineData.packs) {
       if (pack.questions.isEmpty) {
@@ -121,13 +113,14 @@ class _OnlineFeedScreenState
 
       final category =
           AppCategories.byId(
-        pack.questions.first.categoryId,
+        pack.questions
+            .first
+            .categoryId,
       );
 
       final publisher =
           Publisher(
-        id:
-            author.id,
+        id: author.id,
         name:
             author.displayName,
         handle:
@@ -164,49 +157,81 @@ class _OnlineFeedScreenState
     }
   }
 
-  void _nextPage() {
-    if (_cards.isEmpty) {
-      return;
-    }
-
-    if (_currentIndex >=
-        _cards.length - 1) {
-      return;
-    }
-
-    _pageController.nextPage(
-      duration:
-          const Duration(
-        milliseconds: 220,
-      ),
-      curve:
-          Curves.easeOutCubic,
-    );
-  }
+  // ─────────────────────────────────────
+  // Swipe
+  // ─────────────────────────────────────
 
   void _markInterested(
     FeedCard card,
   ) {
+    if (_isTransitioning) {
+      return;
+    }
+
     _interactions.markInterested(
       card.id,
     );
 
     Haptics.light();
 
-    _nextPage();
+    _showNextPack();
   }
 
   void _markNotInterested(
     FeedCard card,
   ) {
+    if (_isTransitioning) {
+      return;
+    }
+
     _interactions.markNotInterested(
       card.id,
     );
 
     Haptics.light();
 
-    _nextPage();
+    _showNextPack();
   }
+
+  void _showNextPack() {
+    if (_isTransitioning) {
+      return;
+    }
+
+    if (_currentIndex >=
+        _cards.length - 1) {
+      setState(() {
+        _isTransitioning = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isTransitioning = true;
+    });
+
+    // Give the outgoing animation time to
+    // finish before replacing the active card.
+    Future<void>.delayed(
+      const Duration(
+        milliseconds: 180,
+      ),
+      () {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _currentIndex++;
+          _isTransitioning = false;
+        });
+      },
+    );
+  }
+
+  // ─────────────────────────────────────
+  // Save
+  // ─────────────────────────────────────
 
   void _toggleSave(
     FeedCard card,
@@ -255,6 +280,10 @@ class _OnlineFeedScreenState
       );
   }
 
+  // ─────────────────────────────────────
+  // Open Pack
+  // ─────────────────────────────────────
+
   Future<void> _openQuestion(
     FeedCard card,
   ) async {
@@ -284,8 +313,11 @@ class _OnlineFeedScreenState
     });
   }
 
-  Future<void>
-      _openPublisherWheel(
+  // ─────────────────────────────────────
+  // Wheel
+  // ─────────────────────────────────────
+
+  Future<void> _openPublisherWheel(
     FeedCard card,
   ) async {
     final questions =
@@ -318,6 +350,10 @@ class _OnlineFeedScreenState
     );
   }
 
+  // ─────────────────────────────────────
+  // Profile
+  // ─────────────────────────────────────
+
   void _openPublisherProfile(
     FeedCard card,
   ) {
@@ -332,6 +368,10 @@ class _OnlineFeedScreenState
       ),
     );
   }
+
+  // ─────────────────────────────────────
+  // Hashtags
+  // ─────────────────────────────────────
 
   Widget _hashtags(
     Question question,
@@ -372,7 +412,11 @@ class _OnlineFeedScreenState
     );
   }
 
-  Widget _feedPage(
+  // ─────────────────────────────────────
+  // Pack Card
+  // ─────────────────────────────────────
+
+  Widget _buildPackCard(
     FeedCard card,
   ) {
     final category =
@@ -380,272 +424,348 @@ class _OnlineFeedScreenState
       card.question.categoryId,
     );
 
-    final saved =
-        _interactions.isSaved(
-      card.id,
-    );
-
-    return Padding(
+    return LiquidGlassContainer(
       padding:
-          const EdgeInsets.fromLTRB(
-        16,
-        12,
-        16,
-        16,
+          const EdgeInsets.all(
+        24,
       ),
       child: Column(
+        mainAxisAlignment:
+            MainAxisAlignment
+                .center,
         children: [
-          LiquidGlassContainer(
+          Container(
             padding:
-                const EdgeInsets
-                    .symmetric(
-              horizontal: 16,
-              vertical: 12,
+                const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
+            decoration:
+                BoxDecoration(
+              color:
+                  category.color
+                      .withOpacity(
+                0.12,
+              ),
+              borderRadius:
+                  BorderRadius.circular(
+                999,
+              ),
+              border:
+                  Border.all(
+                color:
+                    category.color
+                        .withOpacity(
+                  0.65,
+                ),
+              ),
+            ),
+            child: Text(
+              category.name,
+              style:
+                  AppTextStyles
+                      .caption
+                      .copyWith(
+                color:
+                    category.color,
+              ),
+            ),
+          ),
+
+          const SizedBox(
+            height: 28,
+          ),
+
+          Text(
+            card.pack.title,
+            textAlign:
+                TextAlign.center,
+            style:
+                AppTextStyles
+                    .titleMedium,
+          ),
+
+          const SizedBox(
+            height: 14,
+          ),
+
+          Text(
+            card.question.text,
+            textAlign:
+                TextAlign.center,
+            style:
+                AppTextStyles
+                    .displayLarge,
+          ),
+
+          _hashtags(
+            card.question,
+          ),
+
+          const SizedBox(
+            height: 26,
+          ),
+
+          Container(
+            padding:
+                const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 9,
+            ),
+            decoration:
+                BoxDecoration(
+              color: AppColors
+                  .surface
+                  .withOpacity(
+                0.58,
+              ),
+              borderRadius:
+                  BorderRadius.circular(
+                999,
+              ),
+              border:
+                  Border.all(
+                color:
+                    AppColors
+                        .divider,
+              ),
             ),
             child: Row(
+              mainAxisSize:
+                  MainAxisSize.min,
               children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () =>
-                        _openPublisherProfile(
-                      card,
-                    ),
-                    borderRadius:
-                        BorderRadius.circular(
-                      12,
-                    ),
-                    child: Padding(
-                      padding:
-                          const EdgeInsets
-                              .symmetric(
-                        vertical: 6,
-                      ),
-                      child:
-                          Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
-                        children: [
-                          Text(
-                            card.publisher.name,
-                            style:
-                                AppTextStyles
-                                    .username,
-                          ),
-                          Text(
-                            card.publisher.handle,
-                            style:
-                                AppTextStyles
-                                    .caption,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  tooltip:
-                      saved
-                          ? 'حذف من المحفوظات'
-                          : 'سأجيب لاحقًا',
-                  onPressed: () =>
-                      _toggleSave(
-                    card,
-                  ),
-                  icon: Icon(
-                    saved
-                        ? Icons
-                            .bookmark_rounded
-                        : Icons
-                            .bookmark_border_rounded,
-                  ),
+                const Icon(
+                  Icons
+                      .layers_outlined,
+                  size: 18,
                   color:
-                      saved
-                          ? AppColors.secondary
-                          : AppColors.textPrimary,
+                      AppColors
+                          .textSecondary,
+                ),
+                const SizedBox(
+                  width: 6,
+                ),
+                Text(
+                  '${card.pack.questions.length} أسئلة',
+                  style:
+                      AppTextStyles
+                          .caption,
                 ),
               ],
             ),
           ),
 
           const SizedBox(
-            height: 12,
-          ),
-
-          Expanded(
-            child: SwipeableCard(
-              onSwipeLeft: () =>
-                  _markNotInterested(
-                card,
-              ),
-              onSwipeRight: () =>
-                  _markInterested(
-                card,
-              ),
-              child:
-                  GestureDetector(
-                onTap: () =>
-                    _openQuestion(
-                  card,
-                ),
-                child:
-                    LiquidGlassContainer(
-                  padding:
-                      const EdgeInsets.all(
-                    24,
-                  ),
-                  child:
-                      Column(
-                    mainAxisAlignment:
-                        MainAxisAlignment
-                            .center,
-                    children: [
-                      Container(
-                        padding:
-                            const EdgeInsets
-                                .symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration:
-                            BoxDecoration(
-                          color:
-                              category.color
-                                  .withOpacity(
-                            0.12,
-                          ),
-                          borderRadius:
-                              BorderRadius
-                                  .circular(
-                            999,
-                          ),
-                          border:
-                              Border.all(
-                            color:
-                                category.color
-                                    .withOpacity(
-                              0.65,
-                            ),
-                          ),
-                        ),
-                        child:
-                            Text(
-                          category.name,
-                          style:
-                              AppTextStyles
-                                  .caption
-                                  .copyWith(
-                            color:
-                                category.color,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(
-                        height: 28,
-                      ),
-
-                      Text(
-                        card.question.text,
-                        textAlign:
-                            TextAlign.center,
-                        style:
-                            AppTextStyles
-                                .displayLarge,
-                      ),
-
-                      _hashtags(
-                        card.question,
-                      ),
-
-                      const SizedBox(
-                        height: 28,
-                      ),
-
-                      const Text(
-                        'اضغط لفتح السؤال',
-                        style:
-                            AppTextStyles
-                                .caption,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(
-            height: 12,
+            height: 20,
           ),
 
           Text(
-            '${_currentIndex + 1} / ${_cards.length}',
+            'اضغط لفتح المجموعة',
             style:
-                AppTextStyles.caption,
+                AppTextStyles
+                    .caption,
           ),
         ],
       ),
     );
   }
 
-  @override
-  Widget build(
+  // ─────────────────────────────────────
+  // Card stack
+  // ─────────────────────────────────────
+
+  Widget _buildStack() {
+    final visibleCards =
+        <Widget>[];
+
+    final end =
+        (_currentIndex + 3)
+            .clamp(
+      0,
+      _cards.length,
+    );
+
+    for (
+      var index = end - 1;
+      index >= _currentIndex;
+      index--
+    ) {
+      final card =
+          _cards[index];
+
+      final depth =
+          index - _currentIndex;
+
+      final scale =
+          1.0 -
+              (depth * 0.035);
+
+      final verticalOffset =
+          depth * 12.0;
+
+      final horizontalInset =
+          depth * 10.0;
+
+      final isCurrent =
+          depth == 0;
+
+      Widget content =
+          Padding(
+        padding:
+            EdgeInsets.fromLTRB(
+          16 + horizontalInset,
+          12 + verticalOffset,
+          16 + horizontalInset,
+          16,
+        ),
+        child: _buildPackCard(
+          card,
+        ),
+      );
+
+      if (isCurrent) {
+        content =
+            SwipeableCard(
+          key: ValueKey(
+            card.id,
+          ),
+          onSwipeLeft:
+              () =>
+                  _markNotInterested(
+            card,
+          ),
+          onSwipeRight:
+              () =>
+                  _markInterested(
+            card,
+          ),
+          child:
+              GestureDetector(
+            behavior:
+                HitTestBehavior.opaque,
+            onTap: () =>
+                _openQuestion(
+              card,
+            ),
+            child: content,
+          ),
+        );
+      } else {
+        content =
+            IgnorePointer(
+          child:
+              Transform.scale(
+            scale: scale,
+            alignment:
+                Alignment.topCenter,
+            child: content,
+          ),
+        );
+      }
+
+      visibleCards.add(
+        content,
+      );
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children:
+          visibleCards,
+    );
+  }
+
+  // ─────────────────────────────────────
+  // Empty / Finished state
+  // ─────────────────────────────────────
+
+  Widget _buildFinishedState(
     BuildContext context,
   ) {
-    if (_cards.isEmpty) {
-      return Scaffold(
-        backgroundColor:
-            AppColors.background,
-        body: Stack(
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(
+          32,
+        ),
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
           children: [
-            const LiquidBackground(),
-            Center(
-              child: Padding(
-                padding:
-                    const EdgeInsets.all(
-                  32,
-                ),
-                child: Column(
-                  mainAxisSize:
-                      MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons
-                          .inbox_outlined,
-                      size: 56,
-                      color:
-                          AppColors
-                              .textSecondary,
-                    ),
-                    const SizedBox(
-                      height: 16,
-                    ),
-                    Text(
-                      'لا توجد أسئلة حاليًا',
-                      style:
-                          AppTextStyles
-                              .titleLarge,
-                    ),
-                    const SizedBox(
-                      height: 8,
-                    ),
-                    Text(
-                      'أنشئ أول مجموعة من زر + لتظهر هنا.',
-                      textAlign:
-                          TextAlign.center,
-                      style:
-                          AppTextStyles
-                              .bodyMedium,
-                    ),
-                  ],
-                ),
+            const Icon(
+              Icons
+                  .done_all_rounded,
+              size: 58,
+              color:
+                  AppColors.primary,
+            ),
+
+            const SizedBox(
+              height: 18,
+            ),
+
+            Text(
+              'انتهى الاستكشاف',
+              style:
+                  AppTextStyles
+                      .titleLarge,
+              textAlign:
+                  TextAlign.center,
+            ),
+
+            const SizedBox(
+              height: 8,
+            ),
+
+            Text(
+              'مررت على جميع المجموعات المتاحة حاليًا.',
+              style:
+                  AppTextStyles
+                      .bodyMedium,
+              textAlign:
+                  TextAlign.center,
+            ),
+
+            const SizedBox(
+              height: 22,
+            ),
+
+            OutlinedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _currentIndex = 0;
+                });
+              },
+              icon:
+                  const Icon(
+                Icons.refresh_rounded,
+              ),
+              label:
+                  const Text(
+                'ابدأ من جديد',
               ),
             ),
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────
+  // Build
+  // ─────────────────────────────────────
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    final hasCards =
+        _cards.isNotEmpty;
+
+    final finished =
+        hasCards &&
+            _currentIndex >=
+                _cards.length;
 
     return Scaffold(
       backgroundColor:
@@ -655,52 +775,102 @@ class _OnlineFeedScreenState
             const Text('الرئيسية'),
         centerTitle: true,
         actions: [
-          IconButton(
-            tooltip: 'العجلة',
-            onPressed: () =>
-                _openPublisherWheel(
-              _cards[
-                  _currentIndex],
+          if (hasCards &&
+              !finished)
+            IconButton(
+              tooltip: 'العجلة',
+              onPressed: () =>
+                  _openPublisherWheel(
+                _cards[
+                    _currentIndex],
+              ),
+              icon:
+                  const Icon(
+                Icons.casino_outlined,
+              ),
             ),
-            icon:
-                const Icon(
-              Icons.casino_outlined,
-            ),
-          ),
         ],
       ),
       body: Stack(
         children: [
           const LiquidBackground(),
-          SafeArea(
-            child:
-                PageView.builder(
-              controller:
-                  _pageController,
-              scrollDirection:
-                  Axis.vertical,
-              physics:
-                  const VerticalFeedPhysics(),
-              itemCount:
-                  _cards.length,
-              onPageChanged:
-                  (index) {
-                if (!mounted) {
-                  return;
-                }
 
-                setState(() {
-                  _currentIndex =
-                      index;
-                });
-              },
-              itemBuilder:
-                  (context, index) {
-                return _feedPage(
-                  _cards[index],
-                );
-              },
-            ),
+          SafeArea(
+            child: !hasCards
+                ? Center(
+                    child:
+                        Padding(
+                      padding:
+                          const EdgeInsets
+                              .all(
+                        32,
+                      ),
+                      child:
+                          Column(
+                        mainAxisSize:
+                            MainAxisSize
+                                .min,
+                        children: [
+                          const Icon(
+                            Icons
+                                .inbox_outlined,
+                            size: 56,
+                            color:
+                                AppColors
+                                    .textSecondary,
+                          ),
+                          const SizedBox(
+                            height: 16,
+                          ),
+                          Text(
+                            'لا توجد مجموعات حاليًا',
+                            style:
+                                AppTextStyles
+                                    .titleLarge,
+                          ),
+                          const SizedBox(
+                            height: 8,
+                          ),
+                          Text(
+                            'أنشئ أول مجموعة لتظهر هنا.',
+                            textAlign:
+                                TextAlign
+                                    .center,
+                            style:
+                                AppTextStyles
+                                    .bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : finished
+                    ? _buildFinishedState(
+                        context,
+                      )
+                    : Column(
+                        children: [
+                          Expanded(
+                            child:
+                                _buildStack(),
+                          ),
+
+                          const SizedBox(
+                            height: 4,
+                          ),
+
+                          Text(
+                            '${_currentIndex + 1} / ${_cards.length}',
+                            style:
+                                AppTextStyles
+                                    .caption,
+                          ),
+
+                          const SizedBox(
+                            height: 12,
+                          ),
+                        ],
+                      ),
           ),
         ],
       ),
