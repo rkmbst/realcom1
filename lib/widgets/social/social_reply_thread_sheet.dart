@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/social/comment_like_store.dart';
 import '../../core/social/comment_store.dart';
+import '../../core/social/question_social_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/question_comment.dart';
@@ -87,12 +88,20 @@ class _SocialReplyThreadSheetState
         _replyTarget ??
             widget.parentComment;
 
-    _commentStore.add(
+    final reply =
+        _commentStore.add(
       questionId:
           widget.parentComment.questionId,
       text: text,
       parentCommentId:
           currentParent.id,
+    );
+
+    QuestionSocialService.instance.notifyReply(
+      parentComment:
+          currentParent,
+      reply:
+          reply,
     );
 
     _controller.clear();
