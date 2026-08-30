@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
+
 import '../../core/auth/auth_session.dart';
 import '../../models/question_comment.dart';
 
-class CommentStore {
+class CommentStore extends ChangeNotifier {
   CommentStore._();
 
   static final CommentStore instance =
@@ -17,45 +19,39 @@ class CommentStore {
   List<QuestionComment> forQuestion(
     String questionId,
   ) {
-    return _comments
-        .where(
-          (comment) =>
-              comment.questionId ==
-              questionId,
-        )
-        .toList(
-          growable: false,
-        );
+    return List.unmodifiable(
+      _comments.where(
+        (comment) =>
+            comment.questionId ==
+            questionId,
+      ),
+    );
   }
 
   List<QuestionComment> rootComments(
     String questionId,
   ) {
-    return _comments
-        .where(
-          (comment) =>
-              comment.questionId ==
-                  questionId &&
-              comment.parentCommentId ==
-                  null,
-        )
-        .toList(
-          growable: false,
-        );
+    return List.unmodifiable(
+      _comments.where(
+        (comment) =>
+            comment.questionId ==
+                questionId &&
+            comment.parentCommentId ==
+                null,
+      ),
+    );
   }
 
   List<QuestionComment> repliesFor(
     String commentId,
   ) {
-    return _comments
-        .where(
-          (comment) =>
-              comment.parentCommentId ==
-              commentId,
-        )
-        .toList(
-          growable: false,
-        );
+    return List.unmodifiable(
+      _comments.where(
+        (comment) =>
+            comment.parentCommentId ==
+            commentId,
+      ),
+    );
   }
 
   int countForQuestion(
@@ -103,8 +99,7 @@ class CommentStore {
     required String text,
     String? parentCommentId,
   }) {
-    final trimmed =
-        text.trim();
+    final trimmed = text.trim();
 
     if (trimmed.isEmpty) {
       throw ArgumentError(
@@ -119,15 +114,12 @@ class CommentStore {
         parentCommentId,
       );
 
-      // The parent must exist.
       if (parent == null) {
         throw ArgumentError(
           'Parent comment does not exist.',
         );
       }
 
-      // A reply must stay inside
-      // the same question thread.
       if (parent.questionId !=
           questionId) {
         throw ArgumentError(
@@ -157,9 +149,9 @@ class CommentStore {
           parent?.id,
     );
 
-    _comments.add(
-      comment,
-    );
+    _comments.add(comment);
+
+    notifyListeners();
 
     return comment;
   }
@@ -200,12 +192,19 @@ class CommentStore {
       }
     } while (foundNewChild);
 
+    final before =
+        _comments.length;
+
     _comments.removeWhere(
       (comment) =>
           idsToRemove.contains(
         comment.id,
       ),
     );
+
+    if (_comments.length != before) {
+      notifyListeners();
+    }
   }
 
   // ─────────────────────────────────────
@@ -213,6 +212,12 @@ class CommentStore {
   // ─────────────────────────────────────
 
   void clear() {
+    if (_comments.isEmpty) {
+      return;
+    }
+
     _comments.clear();
+
+    notifyListeners();
   }
 }
