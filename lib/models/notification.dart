@@ -2,6 +2,7 @@ enum NotificationType {
   follow,
   like,
   comment,
+  reply,
   newQuestion,
 }
 
@@ -15,6 +16,7 @@ class AppNotification {
     required this.message,
     required this.createdAt,
     this.targetId,
+    this.parentTargetId,
     this.isRead = false,
   });
 
@@ -34,6 +36,9 @@ class AppNotification {
 
   /// Question/profile/other target.
   final String? targetId;
+
+  /// Parent target (e.g., parent comment id for replies).
+  final String? parentTargetId;
 
   final DateTime createdAt;
 
@@ -55,6 +60,8 @@ class AppNotification {
           message,
       targetId:
           targetId,
+      parentTargetId:
+          parentTargetId ?? this.parentTargetId,
       createdAt:
           createdAt,
       isRead:
