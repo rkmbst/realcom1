@@ -177,6 +177,14 @@ class _NotificationsScreenState
         );
         break;
 
+      case NotificationType.reply:
+        // TODO: Open the specific comment thread
+        // using parentTargetId when ready.
+        _openQuestionNotification(
+          notification,
+        );
+        break;
+
       case NotificationType.newQuestion:
         _openPackFromNotification(
           notification,
@@ -225,6 +233,9 @@ class _NotificationsScreenState
         return Icons
             .chat_bubble_outline_rounded;
 
+      case NotificationType.reply:
+        return Icons.reply_rounded;
+
       case NotificationType.newQuestion:
         return Icons.help_outline_rounded;
     }
@@ -242,6 +253,9 @@ class _NotificationsScreenState
 
       case NotificationType.comment:
         return AppColors.textPrimary;
+
+      case NotificationType.reply:
+        return AppColors.primary;
 
       case NotificationType.newQuestion:
         return AppColors.success;
