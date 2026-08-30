@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../core/social/comment_store.dart';
+import '../../core/social/question_social_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../models/question.dart';
 import '../../models/question_comment.dart';
-import '../liquid_glass_container.dart';  // ← أضف هذا السطر
+import '../liquid_glass_container.dart';
 import 'social_comment_card.dart';
 
 class SocialCommentSheet {
@@ -39,13 +40,33 @@ class SocialCommentSheet {
                 return;
               }
 
-              final wasReply = replyToCommentId != null;
+              final parentId = replyToCommentId;
 
-              CommentStore.instance.add(
+              final comment =
+                  CommentStore.instance.add(
                 questionId: question.id,
                 text: text,
-                parentCommentId: replyToCommentId,
+                parentCommentId: parentId,
               );
+
+              if (parentId == null) {
+                QuestionSocialService.instance.notifyComment(
+                  question: question,
+                  comment: comment,
+                );
+              } else {
+                final parent =
+                    CommentStore.instance.findById(
+                  parentId,
+                );
+
+                if (parent != null) {
+                  QuestionSocialService.instance.notifyReply(
+                    parentComment: parent,
+                    reply: comment,
+                  );
+                }
+              }
 
               controller.clear();
 
