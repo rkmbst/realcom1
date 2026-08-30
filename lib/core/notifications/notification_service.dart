@@ -1,7 +1,8 @@
 import '../auth/auth_session.dart';
-import 'notification_store.dart';
 import '../../models/notification.dart';
 import '../../models/question.dart';
+import '../../models/question_comment.dart';
+import 'notification_repository.dart';
 
 class NotificationService {
   NotificationService._();
@@ -10,36 +11,53 @@ class NotificationService {
       NotificationService._();
 
   final _session = AuthSession.instance;
-  final _store = NotificationStore.instance;
 
-  /// Creates a notification for a new follow.
+  final NotificationRepository _repository =
+      LocalNotificationRepository();
+
+  // ─────────────────────────────────────
+  // Follow
+  // ─────────────────────────────────────
+
   void followCreated({
     required String recipientUserId,
-    required String recipientName,
   }) {
     final actor = _session.currentUser;
 
-    if (actor.id == recipientUserId) {
+    if (_invalidRecipient(
+      recipientUserId,
+      actor.id,
+    )) {
       return;
     }
 
-    _add(
-      type: NotificationType.follow,
-      recipientUserId: recipientUserId,
-      actorUserId: actor.id,
-      actorName: actor.displayName,
+    _emit(
+      id:
+          'follow-$recipientUserId-${actor.id}',
+      type:
+          NotificationType.follow,
+      recipientUserId:
+          recipientUserId,
+      actorUserId:
+          actor.id,
+      actorName:
+          actor.displayName,
       message:
           '${actor.displayName} بدأ بمتابعتك',
-      targetId: actor.id,
+      targetId:
+          actor.id,
     );
   }
 
-  /// Creates a notification when someone likes
-  /// a question.
+  // ─────────────────────────────────────
+  // Question Like
+  // ─────────────────────────────────────
+
   void questionLiked({
     required Question question,
   }) {
-    final recipientId = question.authorId;
+    final recipientId =
+        question.authorId;
 
     if (recipientId == null ||
         recipientId.isEmpty) {
@@ -48,27 +66,41 @@ class NotificationService {
 
     final actor = _session.currentUser;
 
-    if (actor.id == recipientId) {
+    if (_invalidRecipient(
+      recipientId,
+      actor.id,
+    )) {
       return;
     }
 
-    _add(
-      type: NotificationType.like,
-      recipientUserId: recipientId,
-      actorUserId: actor.id,
-      actorName: actor.displayName,
+    _emit(
+      id:
+          'question-like-${question.id}-${actor.id}',
+      type:
+          NotificationType.like,
+      recipientUserId:
+          recipientId,
+      actorUserId:
+          actor.id,
+      actorName:
+          actor.displayName,
       message:
           '${actor.displayName} أعجب بسؤالك',
-      targetId: question.id,
+      targetId:
+          question.id,
     );
   }
 
-  /// Creates a notification when someone comments
-  /// on a question.
+  // ─────────────────────────────────────
+  // Question Comment
+  // ─────────────────────────────────────
+
   void questionCommented({
     required Question question,
+    required QuestionComment comment,
   }) {
-    final recipientId = question.authorId;
+    final recipientId =
+        question.authorId;
 
     if (recipientId == null ||
         recipientId.isEmpty) {
@@ -77,22 +109,75 @@ class NotificationService {
 
     final actor = _session.currentUser;
 
-    if (actor.id == recipientId) {
+    if (_invalidRecipient(
+      recipientId,
+      actor.id,
+    )) {
       return;
     }
 
-    _add(
-      type: NotificationType.comment,
-      recipientUserId: recipientId,
-      actorUserId: actor.id,
-      actorName: actor.displayName,
+    _emit(
+      id:
+          'question-comment-${comment.id}',
+      type:
+          NotificationType.comment,
+      recipientUserId:
+          recipientId,
+      actorUserId:
+          actor.id,
+      actorName:
+          actor.displayName,
       message:
           '${actor.displayName} علّق على سؤالك',
-      targetId: question.id,
+      targetId:
+          question.id,
     );
   }
 
-  /// Creates a notification for a newly published pack.
+  // ─────────────────────────────────────
+  // Reply to comment
+  // ─────────────────────────────────────
+
+  void commentReplied({
+    required QuestionComment parentComment,
+    required QuestionComment reply,
+  }) {
+    final recipientId =
+        parentComment.authorId;
+
+    final actor = _session.currentUser;
+
+    if (_invalidRecipient(
+      recipientId,
+      actor.id,
+    )) {
+      return;
+    }
+
+    _emit(
+      id:
+          'comment-reply-${reply.id}',
+      type:
+          NotificationType.reply,
+      recipientUserId:
+          recipientId,
+      actorUserId:
+          actor.id,
+      actorName:
+          actor.displayName,
+      message:
+          '${actor.displayName} رد على تعليقك',
+      targetId:
+          reply.id,
+      parentTargetId:
+          parentComment.id,
+    );
+  }
+
+  // ─────────────────────────────────────
+  // New question / pack
+  // ─────────────────────────────────────
+
   void questionPackPublished({
     required String recipientUserId,
     required String packId,
@@ -100,41 +185,55 @@ class NotificationService {
   }) {
     final actor = _session.currentUser;
 
-    if (actor.id == recipientUserId) {
+    if (_invalidRecipient(
+      recipientUserId,
+      actor.id,
+    )) {
       return;
     }
 
-    _add(
-      type: NotificationType.newQuestion,
-      recipientUserId: recipientUserId,
-      actorUserId: actor.id,
-      actorName: actor.displayName,
-      message: message,
-      targetId: packId,
+    _emit(
+      id:
+          'new-question-$packId-$recipientUserId',
+      type:
+          NotificationType.newQuestion,
+      recipientUserId:
+          recipientUserId,
+      actorUserId:
+          actor.id,
+      actorName:
+          actor.displayName,
+      message:
+          message,
+      targetId:
+          packId,
     );
   }
 
-  /// Central notification creation point.
-  void _add({
+  // ─────────────────────────────────────
+  // Internal
+  // ─────────────────────────────────────
+
+  bool _invalidRecipient(
+    String recipientUserId,
+    String actorUserId,
+  ) {
+    return recipientUserId.isEmpty ||
+        recipientUserId ==
+            actorUserId;
+  }
+
+  void _emit({
+    required String id,
     required NotificationType type,
     required String recipientUserId,
     required String actorUserId,
     required String actorName,
     required String message,
     String? targetId,
+    String? parentTargetId,
   }) {
-    final now =
-        DateTime.now();
-
-    final id = [
-      type.name,
-      recipientUserId,
-      actorUserId,
-      targetId ?? 'none',
-      now.microsecondsSinceEpoch,
-    ].join('-');
-
-    _store.add(
+    _repository.add(
       AppNotification(
         id: id,
         type: type,
@@ -148,8 +247,10 @@ class NotificationService {
             message,
         targetId:
             targetId,
+        parentTargetId:
+            parentTargetId,
         createdAt:
-            now,
+            DateTime.now(),
       ),
     );
   }
