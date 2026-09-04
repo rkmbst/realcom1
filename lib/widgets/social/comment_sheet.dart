@@ -7,6 +7,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../models/question.dart';
 import '../liquid_glass_container.dart';
 import 'social_comment_card.dart';
+import 'social_reply_thread_sheet.dart';
 
 class SocialCommentSheet {
   SocialCommentSheet._();
@@ -15,9 +16,11 @@ class SocialCommentSheet {
     BuildContext context, {
     required Question question,
     VoidCallback? onChanged,
+    String? focusCommentId,
   }) async {
     final controller = TextEditingController();
     String? replyToCommentId;
+    bool didAutoOpenThread = false;
 
     await showModalBottomSheet(
       context: context,
@@ -34,6 +37,39 @@ class SocialCommentSheet {
                     CommentStore.instance.rootComments(
                   question.id,
                 );
+
+                if (focusCommentId != null &&
+                    !didAutoOpenThread) {
+                  didAutoOpenThread = true;
+
+                  final targetComment =
+                      CommentStore.instance.findById(
+                    focusCommentId,
+                  );
+
+                  if (targetComment != null) {
+                    // The notification points at the parent
+                    // comment id. If it's itself a reply,
+                    // resolve up to its root parent so the
+                    // thread sheet has the correct anchor.
+                    final rootTarget =
+                        targetComment.parentCommentId == null
+                            ? targetComment
+                            : CommentStore.instance.findById(
+                                    targetComment.parentCommentId!,
+                                  ) ??
+                                  targetComment;
+
+                    WidgetsBinding.instance.addPostFrameCallback(
+                      (_) {
+                        SocialReplyThreadSheet.show(
+                          sheetContext,
+                          parentComment: rootTarget,
+                        );
+                      },
+                    );
+                  }
+                }
 
                 void submitComment() {
                   final text = controller.text.trim();
