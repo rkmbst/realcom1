@@ -99,6 +99,9 @@ enum BeastEventType {
   contentReaction,
   contentSkip,
   contentHide,
+  follow,
+  vote,
+  replyCreated,
   search,
   commentCreated,
   share,
@@ -1889,7 +1892,7 @@ class BeastUltimate {
     );
   }
 
-  Future<void> search(String query) async {
+  Future<void> search(String query, {int resultCount = 0}) async {
     if (!_allowed()) return;
     final q = query.trim();
     await _writeEvent(
@@ -1899,6 +1902,7 @@ class BeastUltimate {
         'token_count': q.isEmpty
             ? 0
             : q.split(RegExp(r'\s+')).where((e) => e.isNotEmpty).length.clamp(0, 40).toInt(),
+        'result_count': resultCount,
       },
     );
   }
@@ -1906,8 +1910,18 @@ class BeastUltimate {
   Future<void> comment({
     required String itemId,
     required String text,
+    String? category,
+    String? creatorId,
   }) async {
     if (!_allowed()) return;
+
+    brain.ingest(
+      itemId: itemId,
+      eventType: 'comment',
+      category: category,
+      creatorId: creatorId,
+      reward: 0.9,
+    );
 
     await _writeEvent(
       BeastEventType.commentCreated,
@@ -1915,6 +1929,8 @@ class BeastUltimate {
         'content_id': itemId,
         'text_length': text.characters.length,
         'has_text': text.trim().isNotEmpty,
+        'category': category,
+        'creator_id': creatorId,
       },
       priority: 2,
     );
@@ -1929,6 +1945,206 @@ class BeastUltimate {
       explored: false,
       features: const {'comment': 1.0},
       context: {'screen': _screen},
+    );
+  }
+
+  /// متابعة مستخدم/منشئ محتوى.
+  ///
+  /// إشارة إيجابية قوية على مستوى الـcreatorAffinity، بنفس معايير
+  /// reaction الإيجابية (like/love/save/share).
+  Future<void> follow(
+    String userId, {
+    String? category,
+  }) async {
+    if (!_allowed()) return;
+
+    brain.ingest(
+      itemId: userId,
+      eventType: 'follow',
+      category: category,
+      creatorId: userId,
+      reward: 5.0,
+    );
+
+    thompson.update(userId, 1.0);
+
+    await _persistLearningState();
+
+    await _writeEvent(
+      BeastEventType.follow,
+      {
+        'target_user_id': userId,
+        'category': category,
+      },
+      priority: 2,
+    );
+
+    await _recordExperience(
+      itemId: userId,
+      eventType: 'follow',
+      reward: 1.0,
+      prediction: 0.5,
+      position: 0,
+      explored: false,
+      features: const {'follow': 1.0},
+      context: {'screen': _screen},
+    );
+  }
+
+  /// تصويت على عنصر (استفتاء/تقييم سريع).
+  ///
+  /// إشارة تفاعل معتدلة الإيجابية بغض النظر عن قيمة الخيار،
+  /// لأن التصويت نفسه فعل انخراط، سواء كان الخيار موافقًا أو لا.
+  Future<void> vote(
+    String itemId, {
+    String? option,
+    String? category,
+    String? creatorId,
+  }) async {
+    if (!_allowed()) return;
+
+    brain.ingest(
+      itemId: itemId,
+      eventType: 'vote',
+      category: category,
+      creatorId: creatorId,
+      reward: 0.6,
+    );
+
+    thompson.update(itemId, 0.6);
+
+    await _persistLearningState();
+
+    await _writeEvent(
+      BeastEventType.vote,
+      {
+        'content_id': itemId,
+        'option': option,
+        'category': category,
+        'creator_id': creatorId,
+      },
+      priority: 1,
+    );
+
+    await _recordExperience(
+      itemId: itemId,
+      eventType: 'vote',
+      reward: 0.6,
+      prediction: 0.5,
+      position: 0,
+      explored: false,
+      features: const {'vote': 1.0},
+      context: {'screen': _screen, 'option': option},
+    );
+  }
+
+  /// رد على تعليق موجود.
+  ///
+  /// يُعامل كإشارة انخراط قوية شبيهة بالتعليق، لكن بدون نص
+  /// (النص/طوله غير متاح على مستوى هذه الواجهة).
+  Future<void> reply(
+    String itemId, {
+    String? category,
+    String? creatorId,
+    String? parentCommentId,
+  }) async {
+    if (!_allowed()) return;
+
+    brain.ingest(
+      itemId: itemId,
+      eventType: 'reply',
+      category: category,
+      creatorId: creatorId,
+      reward: 0.7,
+    );
+
+    thompson.update(itemId, 0.7);
+
+    await _persistLearningState();
+
+    await _writeEvent(
+      BeastEventType.replyCreated,
+      {
+        'content_id': itemId,
+        'category': category,
+        'creator_id': creatorId,
+        'parent_comment_id': parentCommentId,
+      },
+      priority: 2,
+    );
+
+    await _recordExperience(
+      itemId: itemId,
+      eventType: 'reply',
+      reward: 0.7,
+      prediction: 0.5,
+      position: 0,
+      explored: false,
+      features: const {'reply': 1.0},
+      context: {'screen': _screen, 'parent_comment_id': parentCommentId},
+    );
+  }
+
+  /// ملاحظة صريحة من المستخدم حول جودة توصية معيّنة.
+  ///
+  /// feedback نصّي حرّ. القيم الإيجابية/السلبية المعروفة تُترجم إلى
+  /// مكافأة موجبة/سالبة؛ أي قيمة أخرى تُسجَّل بمكافأة محايدة (0)
+  /// دون التأثير على bandit/brain.
+  Future<void> recommendationFeedback(
+    String itemId, {
+    required String feedback,
+  }) async {
+    if (!_allowed()) return;
+
+    const positiveFeedback = {
+      'relevant',
+      'good',
+      'helpful',
+      'more_like_this',
+      'like',
+    };
+    const negativeFeedback = {
+      'irrelevant',
+      'bad',
+      'not_helpful',
+      'less_like_this',
+      'dislike',
+    };
+
+    final normalized = feedback.trim().toLowerCase();
+    final reward = positiveFeedback.contains(normalized)
+        ? 0.8
+        : negativeFeedback.contains(normalized)
+            ? -0.8
+            : 0.0;
+
+    if (reward != 0.0) {
+      brain.ingest(
+        itemId: itemId,
+        eventType: reward > 0 ? 'positive' : 'negative',
+        reward: reward > 0 ? 5.0 : -6.0,
+      );
+      thompson.update(itemId, reward);
+    }
+
+    await _writeEvent(
+      BeastEventType.recommendationFeedback,
+      {
+        'content_id': itemId,
+        'feedback': feedback,
+      },
+      priority: 2,
+    );
+
+    await _recordExperience(
+      itemId: itemId,
+      eventType: 'recommendation_feedback',
+      reward: reward,
+      prediction: 0.5,
+      position: 0,
+      explored: false,
+      features: const {'recommendation_feedback': 1.0},
+      context: {'screen': _screen, 'feedback': feedback},
     );
   }
 
@@ -6070,63 +6286,67 @@ Widget buildRecommendations() {
   );
 }
 
+/*
+USAGE EXAMPLES (documentation only — not executable top-level code):
 
-// عند عرض عنصر
-await BeastUltimateV2().impression(
-  itemId: 'video_123',
-  tags: ['cooking', 'italian'],
-  position: 0,
-  source: 'home_feed',
-);
+  // عند عرض عنصر
+  await BeastUltimateV2().impression(
+    itemId: 'video_123',
+    tags: ['cooking', 'italian'],
+    position: 0,
+    source: 'home_feed',
+  );
 
-// عند فتح عنصر
-await BeastUltimateV2().openContent(
-  itemId: 'video_123',
-  tags: ['cooking', 'italian'],
-  category: 'food',
-);
+  // عند فتح عنصر
+  await BeastUltimateV2().openContent(
+    itemId: 'video_123',
+    tags: ['cooking', 'italian'],
+    category: 'food',
+  );
 
-// عند قضاء وقت
-await BeastUltimateV2().duration(
-  itemId: 'video_123',
-  durationMs: 45000,
-  tags: ['cooking', 'italian'],
-);
+  // عند قضاء وقت
+  await BeastUltimateV2().duration(
+    itemId: 'video_123',
+    durationMs: 45000,
+    tags: ['cooking', 'italian'],
+  );
 
-// عند الشراء
-await BeastUltimateV2().purchase(
-  itemId: 'product_123',
-  price: 29.99,
-  tags: ['electronics'],
-);
+  // عند الشراء
+  await BeastUltimateV2().purchase(
+    itemId: 'product_123',
+    price: 29.99,
+    tags: ['electronics'],
+  );
 
-// عند إخفاء عنصر
-BeastUltimateV2().userControls.hideItem('video_123');
-BeastUltimateV2().userControls.hideCategory('news');
-BeastUltimateV2().userControls.lessLikeThis('video_456');
-BeastUltimateV2().userControls.moreLikeThis('video_789');
+  // عند إخفاء عنصر
+  BeastUltimateV2().userControls.hideItem('video_123');
+  BeastUltimateV2().userControls.hideCategory('news');
+  BeastUltimateV2().userControls.lessLikeThis('video_456');
+  BeastUltimateV2().userControls.moreLikeThis('video_789');
 
+  BeastUltimateV2().eventStream.listen((event) {
+    print('حدث جديد: ${event['event_type']}');
+    // يمكنك إرسال الأحداث لتطبيقات أخرى (Analytics)
+  });
 
+  // إضافة breadcrumb قبل كل إجراء مهم
+  BeastUltimateV2().addBreadcrumb('user_login', {'method': 'google'});
+  BeastUltimateV2().addBreadcrumb('api_call', {'endpoint': '/videos'});
+  BeastUltimateV2().addBreadcrumb('error_state', {'code': 500});
 
-BeastUltimateV2().eventStream.listen((event) {
-  print('حدث جديد: ${event['event_type']}');
-  // يمكنك إرسال الأحداث لتطبيقات أخرى (Analytics)
-});
+  // عند الانهيار، سيتم إرسال آخر 50 breadcrumb تلقائياً للخادم
 
-// إضافة breadcrumb قبل كل إجراء مهم
-BeastUltimateV2().addBreadcrumb('user_login', {'method': 'google'});
-BeastUltimateV2().addBreadcrumb('api_call', {'endpoint': '/videos'});
-BeastUltimateV2().addBreadcrumb('error_state', {'code': 500});
+NOTE: the pubspec.yaml `dependencies:` block that used to be pasted here
+does NOT belong in a .dart file. Add it to your project's pubspec.yaml
+instead:
 
-// عند الانهيار، سيتم إرسال آخر 50 breadcrumb تلقائياً للخادم
-
-
-dependencies:
-  flutter:
-    sdk: flutter
-  sqflite: ^2.3.0
-  path: ^1.8.3
-  http: ^1.1.0
-  connectivity_plus: ^5.0.2
-  flutter_local_notifications: ^16.3.0
+  dependencies:
+    flutter:
+      sdk: flutter
+    sqflite: ^2.3.0
+    path: ^1.8.3
+    http: ^1.1.0
+    connectivity_plus: ^5.0.2
+    flutter_local_notifications: ^16.3.0
+*/
 

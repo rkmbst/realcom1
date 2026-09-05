@@ -248,11 +248,13 @@ class BeastEventGateway {
 
   Future<void> commented({
     required String itemId,
+    required String text,
     String? category,
     String? creatorId,
   }) {
     return _beast.comment(
-      itemId,
+      itemId: itemId,
+      text: text,
       category: category,
       creatorId: creatorId,
     );

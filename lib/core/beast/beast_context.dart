@@ -590,4 +590,12 @@ class MoodDetector {
       case UserMood.focused:
         return <String, double>{
           'deep': 1.5,
-          'educ
+          'educational': 1.4,
+          'long_form': 1.3,
+        };
+
+      case UserMood.neutral:
+        return const <String, double>{};
+    }
+  }
+}
