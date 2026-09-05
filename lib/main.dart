@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/auth/auth_session.dart';
+import 'core/beast/beast_user_session.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'screens/auth/account_switch_screen.dart';
@@ -8,6 +9,8 @@ import 'screens/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  BeastUserSession.instance.attach();
 
   await ThemeController.instance.load();
 
