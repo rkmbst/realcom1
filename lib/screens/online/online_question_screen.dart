@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/auth_session.dart';
+import '../../core/beast/beast_event_gateway.dart';
 import '../../core/online/feed_interaction_store.dart';
 import '../../core/online/vote_store.dart';
 import '../../core/social/comment_store.dart';
@@ -106,7 +107,14 @@ class _OnlineQuestionScreenState
     });
 
     if (!wasLiked) {
-      // Notification is handled separately.
+      BeastEventGateway.instance.liked(
+        itemId: widget.question.id,
+        tags: widget.question.hashtags,
+        category:
+            widget.question.categoryId.toString(),
+        creatorId:
+            widget.question.authorId,
+      );
     }
 
     Haptics.light();
@@ -163,6 +171,15 @@ class _OnlineQuestionScreenState
       widget.question.id,
     );
 
+    BeastEventGateway.instance.voted(
+      itemId: widget.question.id,
+      option: selectedOptionId,
+      category:
+          widget.question.categoryId.toString(),
+      creatorId:
+          authorId,
+    );
+
     Haptics.light();
 
     final result =
@@ -194,6 +211,15 @@ class _OnlineQuestionScreenState
   }
 
   void _openResults() {
+    BeastEventGateway.instance.contentOpened(
+      itemId: widget.question.id,
+      tags: widget.question.hashtags,
+      category:
+          widget.question.categoryId.toString(),
+      creatorId:
+          widget.question.authorId,
+    );
+
     Navigator.push(
       context,
       MaterialPageRoute(
