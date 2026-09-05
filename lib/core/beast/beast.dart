@@ -55,6 +55,9 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import 'beast_context.dart';
+import 'beast_forgetting.dart';
+
 // ============================================================================
 // ENUMS
 // ============================================================================
@@ -689,6 +692,114 @@ class BeastBrain {
         'ftrl_feature_count': ftrlZ.length,
       };
 
+  /// Full serializable state for the persistent user brain.
+  Map<String, dynamic> exportState() => {
+        'interests': interests,
+        'dislikes': dislikes,
+        'creator_affinity': creatorAffinity,
+        'category_affinity': categoryAffinity,
+        'item_affinity': itemAffinity,
+        'impressions': impressions,
+        'opens': opens,
+        'skips': skips,
+        'hides': hides,
+        'last_seen_at': lastSeenAt,
+        'transitions': transitions,
+        'ftrl_z': ftrlZ,
+        'ftrl_n': ftrlN,
+        'session_interests': sessionInterests,
+        'session_dislikes': sessionDislikes,
+        'recent': recent
+            .map((e) => {
+                  'item_id': e.itemId,
+                  'type': e.type,
+                  'tags': e.tags,
+                  'ts': e.ts,
+                })
+            .toList(),
+      };
+
+  void importState(Map<String, dynamic> state) {
+    clear();
+    _restoreDoubleMap(interests, state['interests']);
+    _restoreDoubleMap(dislikes, state['dislikes']);
+    _restoreDoubleMap(creatorAffinity, state['creator_affinity']);
+    _restoreDoubleMap(categoryAffinity, state['category_affinity']);
+    _restoreDoubleMap(itemAffinity, state['item_affinity']);
+    _restoreIntMap(impressions, state['impressions']);
+    _restoreIntMap(opens, state['opens']);
+    _restoreIntMap(skips, state['skips']);
+    _restoreIntMap(hides, state['hides']);
+    _restoreIntMap(lastSeenAt, state['last_seen_at']);
+    _restoreTransitions(transitions, state['transitions']);
+    _restoreDoubleMap(ftrlZ, state['ftrl_z']);
+    _restoreDoubleMap(ftrlN, state['ftrl_n']);
+    _restoreDoubleMap(sessionInterests, state['session_interests']);
+    _restoreDoubleMap(sessionDislikes, state['session_dislikes']);
+
+    final rawRecent = state['recent'];
+    if (rawRecent is List) {
+      for (final raw in rawRecent) {
+        if (raw is! Map) continue;
+        final itemId = raw['item_id']?.toString() ?? '';
+        final type = raw['type']?.toString() ?? '';
+        final ts = raw['ts'] is num ? (raw['ts'] as num).toInt() : 0;
+        final tags = raw['tags'] is List
+            ? (raw['tags'] as List).map((e) => e.toString()).toList()
+            : const <String>[];
+        recent.addLast(_BrainEvent(
+          itemId: itemId,
+          type: type,
+          tags: tags,
+          ts: ts,
+        ));
+      }
+      while (recent.length > maxRecent) {
+        recent.removeFirst();
+      }
+    }
+  }
+
+  void _restoreDoubleMap(Map<String, double> target, Object? raw) {
+    if (raw is! Map) return;
+    for (final entry in raw.entries) {
+      final value = entry.value;
+      if (value is num && value.toDouble().isFinite) {
+        target[entry.key.toString()] = value.toDouble();
+      }
+    }
+  }
+
+  void _restoreIntMap(Map<String, int> target, Object? raw) {
+    if (raw is! Map) return;
+    for (final entry in raw.entries) {
+      final value = entry.value;
+      if (value is num) {
+        target[entry.key.toString()] = value.toInt();
+      }
+    }
+  }
+
+  void _restoreTransitions(
+    Map<String, Map<String, int>> target,
+    Object? raw,
+  ) {
+    if (raw is! Map) return;
+    for (final entry in raw.entries) {
+      if (entry.value is! Map) continue;
+      final inner = <String, int>{};
+      for (final next in (entry.value as Map).entries) {
+        final value = next.value;
+        if (value is num && value.toInt() > 0) {
+          inner[next.key.toString()] = value.toInt();
+        }
+      }
+      if (inner.isNotEmpty) {
+        target[entry.key.toString()] = inner;
+      }
+    }
+  }
+
   void clear() {
     interests.clear();
     dislikes.clear();
@@ -1097,6 +1208,12 @@ class BeastUltimate {
   final BeastThompsonBandit thompson = BeastThompsonBandit();
   final BeastUserPreferences preferences = BeastUserPreferences();
 
+  /// Advanced context / mood layer.
+  final BeastContextEngine contextEngine = BeastContextEngine();
+
+  /// Adaptive long-term memory decay.
+  final BeastAdaptiveForgetting forgetting = BeastAdaptiveForgetting();
+
   BeastLinUcb? _linUcb;
   BeastRanker _ranker = const BeastRanker();
 
@@ -1160,7 +1277,15 @@ class BeastUltimate {
     required String userId,
     BeastConfig? config,
   }) async {
-    if (_ready) return;
+    if (_disposed) {
+      _disposed = false;
+    }
+    if (_ready) {
+      if (_userId != userId.trim() && userId.trim().isNotEmpty) {
+        await switchUser(userId);
+      }
+      return;
+    }
 
     _config = config ?? _config;
     _userId = userId.trim().isEmpty ? 'anonymous' : userId.trim();
@@ -1212,6 +1337,54 @@ class BeastUltimate {
   }
 
   NavigatorObserver get navigatorObserver => BeastNavigatorObserver(this);
+
+  // --------------------------------------------------------------------------
+  // USER SWITCH
+  // --------------------------------------------------------------------------
+
+  Future<void> switchUser(String userId) async {
+    final nextUser = userId.trim();
+    if (nextUser.isEmpty || nextUser == _userId) return;
+
+    if (_ready && analyticsEnabled) {
+      try {
+        await _persistLearningState();
+        await _writeEvent(
+          BeastEventType.sessionEnd,
+          {'reason': 'user_switch', 'session_age_ms': _sessionAgeMs()},
+          priority: 3,
+        );
+        await flushTouchSummary();
+        await syncExperiences();
+        await flush();
+      } catch (e) {
+        debugPrint('Beast user-switch persistence failed: $e');
+      }
+    }
+
+    _cache.clear();
+    brain.clear();
+    preferences.clear();
+    thompson.importState(const <String, dynamic>{});
+    _linUcb = BeastLinUcb(dimensions: _config.embeddingDimension);
+
+    _userId = nextUser;
+    _sessionId = _id();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _sessionStartedAt = now;
+    _screenStartedAt = now;
+    _lastActivityAt = now;
+
+    await _loadPersistentState();
+
+    if (_allowed()) {
+      await _writeEvent(
+        BeastEventType.sessionStart,
+        {'session_id': _sessionId, 'reason': 'user_switch'},
+        priority: 3,
+      );
+    }
+  }
 
   // --------------------------------------------------------------------------
   // CONSENT
@@ -1284,6 +1457,7 @@ class BeastUltimate {
       priority: 2,
     );
     await flushTouchSummary();
+    await _persistLearningState();
     await syncExperiences();
     await flush();
   }
@@ -1302,6 +1476,37 @@ class BeastUltimate {
   // CONTENT SIGNALS
   // --------------------------------------------------------------------------
 
+  void _observeContext({
+    required String type,
+    required String itemId,
+    List<String> tags = const [],
+    int? durationMs,
+    double? value,
+  }) {
+    contextEngine.observe(
+      BeastContextEvent(
+        type: type,
+        timestamp: DateTime.now(),
+        tags: tags,
+        durationMs: durationMs,
+        value: value,
+      ),
+    );
+
+    // Feed the adaptive forgetting layer with the same semantic evidence.
+    if (value != null && value > 0) {
+      forgetting.reinforce(itemId, evidence: value);
+      for (final tag in tags) {
+        forgetting.reinforce('tag:$tag', evidence: value * 0.35);
+      }
+    } else if (value != null && value < 0) {
+      forgetting.penalize(itemId, evidence: value.abs());
+      for (final tag in tags) {
+        forgetting.penalize('tag:$tag', evidence: value.abs() * 0.35);
+      }
+    }
+  }
+
   Future<void> impression({
     required String itemId,
     List<String> tags = const [],
@@ -1312,6 +1517,8 @@ class BeastUltimate {
   }) async {
     if (!_allowed()) return;
 
+    _observeContext(type: 'impression', itemId: itemId, tags: tags, value: 0.02);
+
     brain.ingest(
       itemId: itemId,
       eventType: 'impression',
@@ -1320,6 +1527,8 @@ class BeastUltimate {
       creatorId: creatorId,
       reward: 0.02,
     );
+
+    await _persistLearningState();
 
     await _writeEvent(
       BeastEventType.contentImpression,
@@ -1353,6 +1562,8 @@ class BeastUltimate {
     );
     final prediction = _predictCandidateSignals(candidate).prediction;
 
+    _observeContext(type: 'open', itemId: itemId, tags: tags, value: 1.2);
+
     brain.ingest(
       itemId: itemId,
       eventType: 'open',
@@ -1384,6 +1595,8 @@ class BeastUltimate {
         'creator_id': creatorId,
       },
     );
+
+    await _persistLearningState();
 
     await _writeEvent(
       BeastEventType.contentOpen,
@@ -1419,6 +1632,8 @@ class BeastUltimate {
     );
     final prediction = _predictCandidateSignals(candidate).prediction;
 
+    _observeContext(type: 'duration', itemId: itemId, tags: tags, durationMs: durationMs, value: reward);
+
     brain.ingest(
       itemId: itemId,
       eventType: 'dwell',
@@ -1448,6 +1663,8 @@ class BeastUltimate {
         'duration_ms': durationMs,
       },
     );
+
+    await _persistLearningState();
 
     await _writeEvent(
       BeastEventType.contentDuration,
@@ -1486,6 +1703,8 @@ class BeastUltimate {
     );
     final prediction = _predictCandidateSignals(candidate).prediction;
 
+    _observeContext(type: reaction, itemId: itemId, tags: tags, value: reward);
+
     brain.ingest(
       itemId: itemId,
       eventType: positive ? 'positive' : 'negative',
@@ -1516,6 +1735,8 @@ class BeastUltimate {
       },
     );
 
+    await _persistLearningState();
+
     await _writeEvent(
       BeastEventType.contentReaction,
       {
@@ -1536,6 +1757,8 @@ class BeastUltimate {
   }) async {
     if (!_allowed()) return;
 
+    _observeContext(type: 'skip', itemId: itemId, tags: tags, value: -0.8);
+
     brain.ingest(
       itemId: itemId,
       eventType: 'skip',
@@ -1554,6 +1777,8 @@ class BeastUltimate {
       features: _tagVector(tags),
       context: {'screen': _screen},
     );
+
+    await _persistLearningState();
 
     await _writeEvent(
       BeastEventType.contentSkip,
@@ -2890,13 +3115,33 @@ class BeastUltimate {
       } catch (_) {}
     }
 
+    final brainRaw = await _readMeta('brain');
+    if (brainRaw != null) {
+      try {
+        final decoded = jsonDecode(brainRaw);
+        if (decoded is Map) {
+          brain.importState(Map<String, dynamic>.from(decoded));
+        }
+      } catch (_) {}
+    }
+
+    final forgettingRaw = await _readMeta('forgetting');
+    if (forgettingRaw != null) {
+      try {
+        final decoded = jsonDecode(forgettingRaw);
+        if (decoded is Map) {
+          forgetting.restore(Map<String, dynamic>.from(decoded));
+        }
+      } catch (_) {}
+    }
+
     await _loadPreferences();
   }
 
   Future<void> _saveMeta(String key, String value) async {
     await _db?.insert(
       'meta',
-      {'key': key, 'value': value},
+      {'key': _scopedMetaKey(key), 'value': value},
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
@@ -2905,11 +3150,44 @@ class BeastUltimate {
     final rows = await _db?.query(
           'meta',
           where: 'key = ?',
-          whereArgs: [key],
+          whereArgs: [_scopedMetaKey(key)],
           limit: 1,
         ) ??
         [];
     return rows.isEmpty ? null : rows.first['value'] as String?;
+  }
+
+  String _scopedMetaKey(String key) =>
+      'user:${_userId.trim().isEmpty ? 'anonymous' : _userId.trim()}:$key';
+
+  Future<void> _persistBrain() async {
+    await _saveMeta(
+      'brain',
+      jsonEncode(brain.exportState()),
+    );
+  }
+
+  Future<void> _persistForgetting() async {
+    await _saveMeta(
+      'forgetting',
+      jsonEncode(forgetting.toJson()),
+    );
+  }
+
+  Future<void> _persistLearningState() async {
+    await _persistBrain();
+    await _persistForgetting();
+    await _saveMeta(
+      'bandit',
+      jsonEncode(thompson.exportState()),
+    );
+    if (_linUcb != null) {
+      await _saveMeta(
+        'linucb',
+        jsonEncode(_linUcb!.exportState()),
+      );
+    }
+    await _persistPreferences();
   }
 
   Future<void> _persistPreferences() async {
@@ -3652,22 +3930,6 @@ print('created', '/mnt/data/beast_small_ultimate.dart', 'lines', len(code.splitl
 // global fairness audit, and secure federated aggregation belong on the Big
 // Beast/backend. This file exposes the client-side contracts needed by them.
 // ============================================================================
-
-import 'dart:async';
-import 'dart:collection';
-import 'dart:convert';
-import 'dart:io';
-import 'dart:math';
-import 'dart:ui' as ui;
-
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as p;
-import 'package:sqflite/sqflite.dart';
 
 // ============================================================================
 // ENUMS
