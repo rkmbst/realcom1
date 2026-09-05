@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/auth_session.dart';
+import '../../core/beast/beast_event_gateway.dart';
 import '../../core/online/feed_interaction_store.dart';
 import '../../core/online/question_pack_store.dart';
 import '../../core/theme/app_colors.dart';
@@ -37,6 +38,8 @@ class _OnlineFeedScreenState
 
   final _interactions =
       FeedInteractionStore.instance;
+
+  final Set<String> _impressionLogged = {};
 
   late List<FeedCard> _cards;
 
@@ -185,6 +188,15 @@ class _OnlineFeedScreenState
       card.id,
     );
 
+    BeastEventGateway.instance.liked(
+      itemId: card.question.id,
+      tags: card.question.hashtags,
+      category:
+          card.question.categoryId.toString(),
+      creatorId:
+          card.publisher.id,
+    );
+
     Haptics.light();
 
     _showNextPack();
@@ -199,6 +211,11 @@ class _OnlineFeedScreenState
 
     _interactions.markNotInterested(
       card.id,
+    );
+
+    BeastEventGateway.instance.contentSkipped(
+      itemId: card.question.id,
+      tags: card.question.hashtags,
     );
 
     Haptics.light();
@@ -243,6 +260,15 @@ class _OnlineFeedScreenState
       );
     });
 
+    BeastEventGateway.instance.saved(
+      itemId: card.question.id,
+      tags: card.question.hashtags,
+      category:
+          card.question.categoryId.toString(),
+      creatorId:
+          card.publisher.id,
+    );
+
     Haptics.medium();
 
     ScaffoldMessenger.of(context)
@@ -285,6 +311,15 @@ class _OnlineFeedScreenState
   ) async {
     _interactions.markOpened(
       card.id,
+    );
+
+    BeastEventGateway.instance.contentOpened(
+      itemId: card.question.id,
+      tags: card.question.hashtags,
+      category:
+          card.question.categoryId.toString(),
+      creatorId:
+          card.publisher.id,
     );
 
     await Navigator.push(
@@ -600,6 +635,21 @@ class _OnlineFeedScreenState
       );
 
       if (isCurrent) {
+        if (!_impressionLogged.contains(card.id)) {
+          _impressionLogged.add(card.id);
+
+          BeastEventGateway.instance.contentImpression(
+            itemId: card.question.id,
+            tags: card.question.hashtags,
+            category:
+                card.question.categoryId.toString(),
+            creatorId:
+                card.publisher.id,
+            position: index,
+            source: 'online_feed',
+          );
+        }
+
         content =
             SwipeableCard(
           key: ValueKey(
